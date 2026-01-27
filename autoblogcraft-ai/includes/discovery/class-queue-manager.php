@@ -29,7 +29,8 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Queue_Manager {
+class Queue_Manager
+{
 
     /**
      * Database table name (without prefix)
@@ -50,7 +51,8 @@ class Queue_Manager {
      *
      * @since 2.0.0
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->logger = Logger::instance();
     }
 
@@ -63,7 +65,8 @@ class Queue_Manager {
      * @param array $item Queue item data.
      * @return int|false Queue item ID on success, false on failure.
      */
-    public function add_to_queue($item) {
+    public function add_to_queue($item)
+    {
         global $wpdb;
 
         // Validate required fields
@@ -77,31 +80,38 @@ class Queue_Manager {
 
         $table = $wpdb->prefix . $this->table_name;
 
+        // Generate Hash (URL + Campaign ID for uniqueness context)
+        // Ideally, we hash the content if available, but URL is the primary unique identifier for discovery.
+        $content_hash = hash('sha256', $item['source_url']);
+
+        // Check for existing hash
+        $exists_query = $wpdb->prepare("SELECT id FROM $table WHERE campaign_id = %d AND content_hash = %s LIMIT 1", $item['campaign_id'], $content_hash);
+        if ($wpdb->get_var($exists_query)) {
+            $this->logger->debug("Duplicate queue item skipped (hash match): {$item['source_url']}");
+            return false;
+        }
+
         // Prepare data
         $data = [
-            'campaign_id'      => absint($item['campaign_id']),
-            'source_url'       => esc_url_raw($item['source_url']),
-            'source_type'      => sanitize_text_field($item['source_type']),
-            'title'            => isset($item['title']) ? sanitize_text_field($item['title']) : '',
-            'excerpt'          => isset($item['excerpt']) ? wp_kses_post($item['excerpt']) : '',
-            'source_data'      => isset($item['source_data']) ? wp_json_encode($item['source_data']) : null,
-            'priority'         => isset($item['priority']) ? absint($item['priority']) : 50,
-            'status'           => 'pending',
-            'discovered_at'    => current_time('mysql'),
+            'campaign_id' => absint($item['campaign_id']),
+            'source_url' => esc_url_raw($item['source_url']),
+            'source_type' => sanitize_text_field($item['source_type']),
+            'content_hash' => $content_hash,
+            'title' => isset($item['title']) ? sanitize_text_field($item['title']) : '',
+            'excerpt' => isset($item['excerpt']) ? wp_kses_post($item['excerpt']) : '',
+            'source_data' => isset($item['source_data']) ? wp_json_encode($item['source_data']) : null,
+            'priority' => isset($item['priority']) ? absint($item['priority']) : 50,
+            'status' => 'pending',
+            'discovered_at' => current_time('mysql'),
         ];
 
-        $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'];
+        $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'];
 
         // Insert with duplicate handling
         $result = $wpdb->insert($table, $data, $format);
 
         if ($result === false) {
-            // Check if it's a duplicate
-            if ($wpdb->last_error && strpos($wpdb->last_error, 'Duplicate entry') !== false) {
-                $this->logger->debug("Duplicate queue item skipped: {$item['source_url']}");
-                return false; // Not an error - just already exists
-            }
-
+            // Redundant check, but safe
             $this->logger->error("Failed to add queue item: {$wpdb->last_error}");
             return false;
         }
@@ -122,7 +132,8 @@ class Queue_Manager {
      * @param array $items Array of queue items.
      * @return array Array with 'success' count and 'failed' count.
      */
-    public function add_batch($items) {
+    public function add_batch($items)
+    {
         if (empty($items) || !is_array($items)) {
             return ['success' => 0, 'failed' => 0];
         }
@@ -157,7 +168,8 @@ class Queue_Manager {
      * @param int|null $campaign_id Optional campaign ID filter.
      * @return array Array of queue items.
      */
-    public function get_next_items($limit = 10, $campaign_id = null) {
+    public function get_next_items($limit = 10, $campaign_id = null)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -197,7 +209,8 @@ class Queue_Manager {
      * @param int $queue_id Queue item ID.
      * @return bool True on success, false on failure.
      */
-    public function mark_processing($queue_id) {
+    public function mark_processing($queue_id)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -231,7 +244,8 @@ class Queue_Manager {
      * @param int $post_id Created post ID.
      * @return bool True on success, false on failure.
      */
-    public function mark_completed($queue_id, $post_id) {
+    public function mark_completed($queue_id, $post_id)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -268,7 +282,8 @@ class Queue_Manager {
      * @param string $error_message Error description.
      * @return bool True on success, false on failure.
      */
-    public function mark_failed($queue_id, $error_message = '') {
+    public function mark_failed($queue_id, $error_message = '')
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -305,7 +320,8 @@ class Queue_Manager {
      * @param int $minutes Age threshold in minutes (default 30).
      * @return int Number of items reset.
      */
-    public function reset_stuck_items($minutes = 30) {
+    public function reset_stuck_items($minutes = 30)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -342,7 +358,8 @@ class Queue_Manager {
      * @param int $days Age threshold in days (default 30).
      * @return int Number of items deleted.
      */
-    public function cleanup_old_items($days = 30) {
+    public function cleanup_old_items($days = 30)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -378,7 +395,8 @@ class Queue_Manager {
      * @param int|null $campaign_id Optional campaign ID filter.
      * @return array Statistics array.
      */
-    public function get_stats($campaign_id = null) {
+    public function get_stats($campaign_id = null)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -422,7 +440,8 @@ class Queue_Manager {
      * @param string $source_url Source URL.
      * @return bool True if exists, false otherwise.
      */
-    public function url_exists($campaign_id, $source_url) {
+    public function url_exists($campaign_id, $source_url)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -447,7 +466,8 @@ class Queue_Manager {
      * @param int $queue_id Queue item ID.
      * @return array|null Queue item or null if not found.
      */
-    public function get_item($queue_id) {
+    public function get_item($queue_id)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -474,7 +494,8 @@ class Queue_Manager {
      * @param int $queue_id Queue item ID.
      * @return bool True on success, false on failure.
      */
-    public function delete_item($queue_id) {
+    public function delete_item($queue_id)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;
@@ -502,7 +523,8 @@ class Queue_Manager {
      * @param int $campaign_id Campaign ID.
      * @return int Number of items deleted.
      */
-    public function delete_by_campaign($campaign_id) {
+    public function delete_by_campaign($campaign_id)
+    {
         global $wpdb;
 
         $table = $wpdb->prefix . $this->table_name;

@@ -178,7 +178,7 @@ abstract class Campaign_Base {
     /**
      * Parse interval string to seconds
      *
-     * @param string $interval Interval string (e.g., '5min', '1hr', '2hr')
+     * @param string $interval Interval string (e.g., 'every_1_hour', 'daily', 'custom_1h_30m')
      * @return int Seconds
      */
     protected function parse_interval($interval) {
@@ -186,22 +186,42 @@ abstract class Campaign_Base {
             return absint($interval);
         }
 
-        // Parse custom interval strings
-        if (preg_match('/^(\d+)(min|hr|day)$/', $interval, $matches)) {
-            $value = absint($matches[1]);
-            $unit = $matches[2];
+        // Handle standardized intervals
+        $predefined = [
+            'every_1_hour' => HOUR_IN_SECONDS,
+            'every_2_hours' => 2 * HOUR_IN_SECONDS,
+            'every_4_hours' => 4 * HOUR_IN_SECONDS,
+            'every_6_hours' => 6 * HOUR_IN_SECONDS,
+            'every_12_hours' => 12 * HOUR_IN_SECONDS,
+            'daily' => DAY_IN_SECONDS,
+            'weekly' => 7 * DAY_IN_SECONDS,
+            'monthly' => 30 * DAY_IN_SECONDS,
+        ];
 
-            switch ($unit) {
-                case 'min':
-                    return $value * MINUTE_IN_SECONDS;
-                case 'hr':
-                    return $value * HOUR_IN_SECONDS;
-                case 'day':
-                    return $value * DAY_IN_SECONDS;
-            }
+        if (isset($predefined[$interval])) {
+            return $predefined[$interval];
         }
 
-        // Default to 1 hour
+        // Parse custom interval format: custom_Xh_Ym (e.g., custom_1h_30m, custom_0h_45m)
+        if (preg_match('/^custom_(\d+)h_(\d+)m$/', $interval, $matches)) {
+            $hours = absint($matches[1]);
+            $minutes = absint($matches[2]);
+            
+            // Validate bounds
+            $hours = min($hours, 999);
+            $minutes = min($minutes, 59);
+            
+            $total_seconds = ($hours * HOUR_IN_SECONDS) + ($minutes * MINUTE_IN_SECONDS);
+            
+            // Enforce minimum of 15 minutes (900 seconds)
+            if ($total_seconds < 900) {
+                $total_seconds = 900;
+            }
+            
+            return $total_seconds;
+        }
+
+        // Default to 1 hour if format not recognized
         return HOUR_IN_SECONDS;
     }
 

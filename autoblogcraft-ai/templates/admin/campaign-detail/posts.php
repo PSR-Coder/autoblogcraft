@@ -14,6 +14,8 @@
  * @var array $filters Active filters
  */
 
+use AutoBlogCraft\Helpers\Template_Helpers;
+
 defined('ABSPATH') || exit;
 
 $campaign = $campaign ?? null;
@@ -28,34 +30,40 @@ if (!$campaign) {
 
 <div class="abc-campaign-posts">
 	<!-- Posts Filters -->
-	<div class="abc-posts-filters">
-		<form method="get" class="abc-filters-form">
-			<input type="hidden" name="page" value="<?php echo esc_attr($_GET['page'] ?? ''); ?>">
-			<input type="hidden" name="action" value="detail">
-			<input type="hidden" name="id" value="<?php echo esc_attr($campaign->ID); ?>">
-			<input type="hidden" name="tab" value="posts">
-			
-			<div class="abc-filter-group">
-				<label for="filter-post-status"><?php esc_html_e('Status:', 'autoblogcraft-ai'); ?></label>
-				<select name="post_status" id="filter-post-status">
-					<option value=""><?php esc_html_e('All Statuses', 'autoblogcraft-ai'); ?></option>
-					<option value="publish" <?php selected($filters['status'] ?? '', 'publish'); ?>><?php esc_html_e('Published', 'autoblogcraft-ai'); ?></option>
-					<option value="draft" <?php selected($filters['status'] ?? '', 'draft'); ?>><?php esc_html_e('Draft', 'autoblogcraft-ai'); ?></option>
-					<option value="pending" <?php selected($filters['status'] ?? '', 'pending'); ?>><?php esc_html_e('Pending', 'autoblogcraft-ai'); ?></option>
-				</select>
-			</div>
+	<?php
+	Template_Helpers::render_campaign_filter_bar(
+		$campaign->ID,
+		'posts',
+		[
+			[
+				'type' => 'select',
+				'key' => 'status',
+				'name' => 'post_status',
+				'id' => 'filter-post-status',
+				'label' => __('Status:', 'autoblogcraft-ai'),
+				'placeholder' => __('All Statuses', 'autoblogcraft-ai'),
+				'options' => [
+					'publish' => __('Published', 'autoblogcraft-ai'),
+					'draft' => __('Draft', 'autoblogcraft-ai'),
+					'pending' => __('Pending', 'autoblogcraft-ai'),
+				],
+			],
+			[
+				'type' => 'search',
+				'key' => 'search',
+				'name' => 's',
+				'id' => 'filter-search',
+				'label' => __('Search posts', 'autoblogcraft-ai'),
+				'placeholder' => __('Search posts...', 'autoblogcraft-ai'),
+				'class' => 'abc-filter-group abc-filter-search',
+			],
+		],
+		$filters
+	);
+	?>
 
-			<div class="abc-filter-group abc-filter-search">
-				<label for="filter-search" class="screen-reader-text"><?php esc_html_e('Search posts', 'autoblogcraft-ai'); ?></label>
-				<input type="search" name="s" id="filter-search" 
-				       value="<?php echo esc_attr($filters['search'] ?? ''); ?>" 
-				       placeholder="<?php esc_attr_e('Search posts...', 'autoblogcraft-ai'); ?>">
-			</div>
-
-			<button type="submit" class="button"><?php esc_html_e('Filter', 'autoblogcraft-ai'); ?></button>
-		</form>
-
-		<div class="abc-posts-actions">
+	<!-- Additional Actions (if any) -->
+	<div class="abc-posts-actions" style="margin-top: 15px;">
 			<a href="<?php echo esc_url(admin_url('edit.php?abc_campaign_id=' . $campaign->ID)); ?>" class="button">
 				<span class="dashicons dashicons-external"></span>
 				<?php esc_html_e('View in Posts List', 'autoblogcraft-ai'); ?>
@@ -124,7 +132,7 @@ if (!$campaign) {
 							<?php if ($post->post_status === 'publish') : ?>
 								<?php echo esc_html(date_i18n(get_option('date_format'), strtotime($post->post_date))); ?>
 								<br>
-								<small><?php echo esc_html(human_time_diff(strtotime($post->post_date), current_time('timestamp'))); ?> <?php esc_html_e('ago', 'autoblogcraft-ai'); ?></small>
+							<small><?php echo esc_html(Template_Helpers::format_relative_time($post->post_date)); ?></small>
 							<?php else : ?>
 								<?php esc_html_e('Not published', 'autoblogcraft-ai'); ?>
 							<?php endif; ?>
@@ -141,29 +149,12 @@ if (!$campaign) {
 		</table>
 
 		<!-- Pagination -->
-		<?php if ($pagination->total > $pagination->per_page) : ?>
-			<div class="abc-pagination">
-				<?php
-				$total_pages = ceil($pagination->total / $pagination->per_page);
-				$current_page = $pagination->current_page;
-				
-				echo paginate_links([
-					'base' => add_query_arg('paged', '%#%'),
-					'format' => '',
-					'prev_text' => __('&laquo; Previous', 'autoblogcraft-ai'),
-					'next_text' => __('Next &raquo;', 'autoblogcraft-ai'),
-					'total' => $total_pages,
-					'current' => $current_page,
-					'type' => 'plain',
-				]);
-				?>
-			</div>
-		<?php endif; ?>
+		<?php echo Template_Helpers::render_pagination($pagination); ?>
 	<?php else : ?>
-		<div class="abc-empty-state">
-			<span class="dashicons dashicons-edit"></span>
-			<h3><?php esc_html_e('No posts yet', 'autoblogcraft-ai'); ?></h3>
-			<p><?php esc_html_e('Posts will appear here when they are generated from the queue.', 'autoblogcraft-ai'); ?></p>
-		</div>
+		<?php Template_Helpers::render_empty_state(
+			__('No posts yet', 'autoblogcraft-ai'),
+			__('Posts will appear here when they are generated from the queue.', 'autoblogcraft-ai'),
+			'edit'
+		); ?>
 	<?php endif; ?>
 </div>

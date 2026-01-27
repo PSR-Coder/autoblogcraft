@@ -40,13 +40,6 @@ class Discovery_Job {
     private $logger;
 
     /**
-     * Campaign factory
-     *
-     * @var Campaign_Factory
-     */
-    private $factory;
-
-    /**
      * Discovery manager
      *
      * @var Discovery_Manager
@@ -60,7 +53,6 @@ class Discovery_Job {
      */
     public function __construct() {
         $this->logger = Logger::instance();
-        $this->factory = new Campaign_Factory();
         $this->discovery = new Discovery_Manager();
     }
 
@@ -135,9 +127,9 @@ class Discovery_Job {
 
         foreach ($query->posts as $post) {
             try {
-                $campaign = $this->factory->get_campaign($post->ID);
+                $campaign = Campaign_Factory::create($post->ID);
                 
-                if ($campaign) {
+                if (!is_wp_error($campaign)) {
                     $campaigns[] = $campaign;
                 }
             } catch (\Exception $e) {
@@ -221,9 +213,9 @@ class Discovery_Job {
         $this->logger->info("Manual discovery triggered: Campaign ID={$campaign_id}");
 
         try {
-            $campaign = $this->factory->get_campaign($campaign_id);
+            $campaign = Campaign_Factory::create($campaign_id);
 
-            if (!$campaign) {
+            if (is_wp_error($campaign)) {
                 throw new \Exception("Campaign not found: ID={$campaign_id}");
             }
 
@@ -246,9 +238,9 @@ class Discovery_Job {
      */
     public function get_schedule($campaign_id) {
         try {
-            $campaign = $this->factory->get_campaign($campaign_id);
+            $campaign = Campaign_Factory::create($campaign_id);
 
-            if (!$campaign) {
+            if (is_wp_error($campaign)) {
                 return null;
             }
 

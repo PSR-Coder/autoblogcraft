@@ -27,7 +27,8 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Admin_Assets {
+class Admin_Assets
+{
 
     /**
      * Assets version
@@ -48,7 +49,8 @@ class Admin_Assets {
      *
      * @since 2.0.0
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->version = ABC_VERSION;
         $this->assets_url = plugins_url('assets/', ABC_PLUGIN_FILE);
 
@@ -62,7 +64,8 @@ class Admin_Assets {
      * @param string $hook Current admin page hook.
      * @return void
      */
-    public function enqueue_assets($hook) {
+    public function enqueue_assets($hook)
+    {
         // Only load on AutoBlogCraft pages
         if (!$this->is_abc_page($hook)) {
             return;
@@ -82,34 +85,15 @@ class Admin_Assets {
      * @param string $hook Current admin page hook.
      * @return void
      */
-    private function enqueue_styles($hook) {
-        // Global admin styles (all ABC pages)
+    private function enqueue_styles($hook)
+    {
+        // Global admin styles (all ABC pages) - Consolidated v2.6.0
         wp_enqueue_style(
             'abc-admin',
-            $this->assets_url . 'css/admin.css',
+            $this->assets_url . 'css/abc-admin.css',
             [],
             $this->version
         );
-
-        // Dashboard-specific styles
-        if ($this->is_dashboard_page($hook)) {
-            wp_enqueue_style(
-                'abc-dashboard',
-                $this->assets_url . 'css/dashboard.css',
-                ['abc-admin'],
-                $this->version
-            );
-        }
-
-        // Wizard-specific styles
-        if ($this->is_wizard_page($hook)) {
-            wp_enqueue_style(
-                'abc-wizard',
-                $this->assets_url . 'css/wizard.css',
-                ['abc-admin'],
-                $this->version
-            );
-        }
 
         // WordPress color picker (for settings)
         if ($this->is_settings_page($hook)) {
@@ -124,7 +108,8 @@ class Admin_Assets {
      * @param string $hook Current admin page hook.
      * @return void
      */
-    private function enqueue_scripts($hook) {
+    private function enqueue_scripts($hook)
+    {
         // Global admin scripts (all ABC pages)
         wp_enqueue_script(
             'abc-admin',
@@ -153,21 +138,7 @@ class Admin_Assets {
             );
         }
 
-        // Wizard-specific scripts
-        if ($this->is_wizard_page($hook)) {
-            wp_enqueue_script(
-                'abc-wizard',
-                $this->assets_url . 'js/wizard.js',
-                ['jquery', 'abc-admin'],
-                $this->version,
-                true
-            );
 
-            wp_localize_script('abc-wizard', 'abcWizard', [
-                'steps' => $this->get_wizard_steps(),
-                'validation_rules' => $this->get_validation_rules(),
-            ]);
-        }
 
         // API Keys page scripts
         if ($this->is_api_keys_page($hook)) {
@@ -180,8 +151,8 @@ class Admin_Assets {
             );
         }
 
-        // Campaign detail page scripts
-        if ($this->is_campaign_detail_page($hook)) {
+        // Campaign editor page scripts (tabbed interface)
+        if ($this->is_campaign_editor_page($hook)) {
             wp_enqueue_script(
                 'abc-campaign-detail',
                 $this->assets_url . 'js/campaign-detail.js',
@@ -191,8 +162,32 @@ class Admin_Assets {
             );
 
             wp_localize_script('abc-campaign-detail', 'abcCampaignDetail', [
-                'campaign_id' => isset($_GET['campaign_id']) ? intval($_GET['campaign_id']) : 0,
-                'refresh_interval' => 30000, // 30 seconds
+                'campaignId' => isset($_GET['campaign_id']) ? intval($_GET['campaign_id']) : 0,
+                'campaign_id' => isset($_GET['campaign_id']) ? intval($_GET['campaign_id']) : 0, // Keep both for compatibility
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('abc_campaign_detail'),
+                'refreshInterval' => 30000, // 30 seconds
+                'refresh_interval' => 30000, // Keep both for compatibility
+                // Individual nonces for inline template handlers
+                'exportLogsNonce' => wp_create_nonce('abc_export_logs'),
+                'clearLogsNonce' => wp_create_nonce('abc_clear_campaign_logs'),
+                'processQueueNonce' => wp_create_nonce('abc_process_queue'),
+                'processQueueItemNonce' => wp_create_nonce('abc_process_queue_item'),
+                'deleteQueueItemNonce' => wp_create_nonce('abc_delete_queue_item'),
+                'clearFailedQueueNonce' => wp_create_nonce('abc_clear_failed_queue'),
+                // i18n strings
+                'i18n' => [
+                    'showDetails' => __('Show Details', 'autoblogcraft-ai'),
+                    'hideDetails' => __('Hide Details', 'autoblogcraft-ai'),
+                    'confirmClearLogs' => __('Are you sure you want to clear all logs for this campaign? This action cannot be undone.', 'autoblogcraft-ai'),
+                    'errorClearingLogs' => __('Error clearing logs. Please try again.', 'autoblogcraft-ai'),
+                    'processingStarted' => __('Processing started successfully.', 'autoblogcraft-ai'),
+                    'errorProcessingQueue' => __('Error processing queue. Please try again.', 'autoblogcraft-ai'),
+                    'errorProcessingItem' => __('Error processing item. Please try again.', 'autoblogcraft-ai'),
+                    'confirmDeleteItem' => __('Are you sure you want to delete this item?', 'autoblogcraft-ai'),
+                    'confirmClearFailed' => __('Are you sure you want to delete all failed items?', 'autoblogcraft-ai'),
+                    'errorClearingFailed' => __('Error clearing failed items. Please try again.', 'autoblogcraft-ai'),
+                ],
             ]);
         }
 
@@ -213,7 +208,8 @@ class Admin_Assets {
      * @since 2.0.0
      * @return array
      */
-    private function get_translatable_strings() {
+    private function get_translatable_strings()
+    {
         return [
             'confirm_delete' => __('Are you sure you want to delete this? This action cannot be undone.', 'autoblogcraft'),
             'confirm_pause' => __('Pause this campaign?', 'autoblogcraft'),
@@ -238,7 +234,8 @@ class Admin_Assets {
      * @since 2.0.0
      * @return array
      */
-    private function get_script_settings() {
+    private function get_script_settings()
+    {
         return [
             'debug_mode' => get_option('abc_enable_debug_logging', false),
             'auto_refresh' => true,
@@ -247,86 +244,30 @@ class Admin_Assets {
         ];
     }
 
-    /**
-     * Get wizard steps configuration
-     *
-     * @since 2.0.0
-     * @return array
-     */
-    private function get_wizard_steps() {
-        return [
-            1 => ['name' => 'type', 'title' => __('Campaign Type', 'autoblogcraft')],
-            2 => ['name' => 'basic', 'title' => __('Basic Information', 'autoblogcraft')],
-            3 => ['name' => 'sources', 'title' => __('Content Sources', 'autoblogcraft')],
-            4 => ['name' => 'ai', 'title' => __('AI Configuration', 'autoblogcraft')],
-            5 => ['name' => 'modules', 'title' => __('Optional Modules', 'autoblogcraft')],
-        ];
-    }
+
 
     /**
-     * Get validation rules for forms
-     *
-     * @since 2.0.0
-     * @return array
-     */
-    private function get_validation_rules() {
-        return [
-            'url' => [
-                'pattern' => '^https?://.+',
-                'message' => __('Please enter a valid URL starting with http:// or https://', 'autoblogcraft'),
-            ],
-            'email' => [
-                'pattern' => '^[^@]+@[^@]+\.[^@]+$',
-                'message' => __('Please enter a valid email address.', 'autoblogcraft'),
-            ],
-            'number' => [
-                'pattern' => '^[0-9]+$',
-                'message' => __('Please enter a valid number.', 'autoblogcraft'),
-            ],
-        ];
-    }
-
-    /**
-     * Check if current page is an ABC page
+     * Check if current page is an AutoBlogCraft page
      *
      * @since 2.0.0
      * @param string $hook Page hook.
      * @return bool
      */
-    private function is_abc_page($hook) {
-        // Check for our top-level menu page
-        if (strpos($hook, 'autoblogcraft') !== false) {
-            return true;
-        }
-
-        // Check for ABC campaign wizard or detail pages
-        if (isset($_GET['page']) && strpos($_GET['page'], 'abc-') !== false) {
-            return true;
-        }
-
-        return false;
+    private function is_abc_page($hook)
+    {
+        return strpos($hook, 'autoblogcraft') !== false || strpos($hook, 'abc-') !== false;
     }
 
     /**
-     * Check if current page is dashboard
+     * Check if current page is the dashboard
      *
      * @since 2.0.0
      * @param string $hook Page hook.
      * @return bool
      */
-    private function is_dashboard_page($hook) {
+    private function is_dashboard_page($hook)
+    {
         return $hook === 'toplevel_page_autoblogcraft';
-    }
-
-    /**
-     * Check if current page is wizard
-     *
-     * @since 2.0.0
-     * @param string $hook Page hook.
-     * @return bool
-     */
-    private function is_wizard_page($hook) {
-        return isset($_GET['page']) && $_GET['page'] === 'abc-campaign-wizard';
     }
 
     /**
@@ -336,7 +277,8 @@ class Admin_Assets {
      * @param string $hook Page hook.
      * @return bool
      */
-    private function is_settings_page($hook) {
+    private function is_settings_page($hook)
+    {
         return strpos($hook, 'autoblogcraft-settings') !== false;
     }
 
@@ -347,19 +289,21 @@ class Admin_Assets {
      * @param string $hook Page hook.
      * @return bool
      */
-    private function is_api_keys_page($hook) {
+    private function is_api_keys_page($hook)
+    {
         return strpos($hook, 'autoblogcraft-api-keys') !== false;
     }
 
     /**
-     * Check if current page is campaign detail
+     * Check if current page is campaign editor (unified tabbed interface)
      *
      * @since 2.0.0
      * @param string $hook Page hook.
      * @return bool
      */
-    private function is_campaign_detail_page($hook) {
-        return isset($_GET['page']) && $_GET['page'] === 'abc-campaign-detail';
+    private function is_campaign_editor_page($hook)
+    {
+        return isset($_GET['page']) && $_GET['page'] === 'abc-campaign-editor' && isset($_GET['campaign_id']);
     }
 
     /**
@@ -369,9 +313,10 @@ class Admin_Assets {
      * @param string $hook Page hook.
      * @return bool
      */
-    private function needs_media_uploader($hook) {
-        // Add media uploader to wizard and settings pages
-        return $this->is_wizard_page($hook) || $this->is_settings_page($hook);
+    private function needs_media_uploader($hook)
+    {
+        // Add media uploader to settings pages
+        return $this->is_settings_page($hook);
     }
 
     /**
@@ -382,9 +327,10 @@ class Admin_Assets {
      * @since 2.0.0
      * @return void
      */
-    public function add_inline_styles() {
+    public function add_inline_styles()
+    {
         $custom_css = get_option('abc_custom_admin_css', '');
-        
+
         if (!empty($custom_css)) {
             wp_add_inline_style('abc-admin', $custom_css);
         }

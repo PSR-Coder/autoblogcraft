@@ -40,8 +40,13 @@ class AJAX_Handlers {
         add_action('wp_ajax_abc_campaign_activate', [$this, 'activate_campaign']);
         add_action('wp_ajax_abc_bulk_campaign_action', [$this, 'bulk_campaign_action']);
         
-        // API key validation
+        // API key validation and refresh
         add_action('wp_ajax_abc_test_api_key', [$this, 'test_api_key']);
+        add_action('wp_ajax_abc_refresh_api_keys', [$this, 'refresh_api_keys']);
+        
+        // Campaign detail tab AJAX
+        add_action('wp_ajax_abc_save_campaign_sources', [$this, 'save_campaign_sources']);
+        add_action('wp_ajax_abc_save_campaign_settings', [$this, 'save_campaign_settings']);
     }
 
     /**
@@ -178,10 +183,9 @@ class AJAX_Handlers {
             wp_send_json_error(['message' => __('Invalid campaign ID.', 'autoblogcraft')]);
         }
 
-        $factory = new Campaign_Factory();
-        $campaign = $factory->get_campaign($campaign_id);
+        $campaign = Campaign_Factory::create($campaign_id);
 
-        if (!$campaign) {
+        if (is_wp_error($campaign)) {
             wp_send_json_error(['message' => __('Campaign not found.', 'autoblogcraft')]);
         }
 
@@ -208,10 +212,9 @@ class AJAX_Handlers {
             wp_send_json_error(['message' => __('Invalid campaign ID.', 'autoblogcraft')]);
         }
 
-        $factory = new Campaign_Factory();
-        $campaign = $factory->get_campaign($campaign_id);
+        $campaign = Campaign_Factory::create($campaign_id);
 
-        if (!$campaign) {
+        if (is_wp_error($campaign)) {
             wp_send_json_error(['message' => __('Campaign not found.', 'autoblogcraft')]);
         }
 
@@ -239,12 +242,11 @@ class AJAX_Handlers {
             wp_send_json_error(['message' => __('Invalid request.', 'autoblogcraft')]);
         }
 
-        $factory = new Campaign_Factory();
         $count = 0;
 
         foreach ($campaign_ids as $campaign_id) {
-            $campaign = $factory->get_campaign($campaign_id);
-            if (!$campaign) {
+            $campaign = Campaign_Factory::create($campaign_id);
+            if (is_wp_error($campaign)) {
                 continue;
             }
 
@@ -612,5 +614,85 @@ class AJAX_Handlers {
         }
 
         return true;
+    }
+
+    /**
+     * Refresh API keys list
+     *
+     * @since 2.0.0
+     */
+    public function refresh_api_keys() {
+        check_ajax_referer('abc_refresh_api_keys', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'autoblogcraft')]);
+        }
+
+        global $wpdb;
+        $api_keys = $wpdb->get_results("SELECT id, key_name, provider FROM {$wpdb->prefix}abc_api_keys WHERE status = 'active'");
+
+        if (empty($api_keys)) {
+            wp_send_json_success([]);
+        }
+
+        wp_send_json_success($api_keys);
+    }
+
+    /**
+     * Save campaign sources
+     *
+     * @since 2.0.0
+     */
+    public function save_campaign_sources() {
+        check_ajax_referer('abc_admin', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'autoblogcraft')]);
+        }
+        $campaign_id = isset($_POST['campaign_id']) ? absint($_POST['campaign_id']) : 0;
+        if (!$campaign_id) {
+            wp_send_json_error(['message' => __('Invalid campaign ID.', 'autoblogcraft')]);
+        }
+        $campaign = get_post($campaign_id);
+        if (!$campaign || $campaign->post_type !== 'abc_campaign') {
+            wp_send_json_error(['message' => __('Campaign not found.', 'autoblogcraft')]);
+        }
+        require_once ABC_PLUGIN_DIR . 'includes/campaigns/class-campaign-repository.php';
+        $repo = new \AutoBlogCraft\Campaigns\Campaign_Repository();
+        $result = $repo->save($campaign_id, $_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+        wp_send_json_success([
+            'message' => __('Sources saved successfully.', 'autoblogcraft'),
+        ]);
+    }
+
+    /**
+     * Save campaign settings
+     *
+     * @since 2.0.0
+     */
+    public function save_campaign_settings() {
+        check_ajax_referer('abc_admin', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'autoblogcraft')]);
+        }
+        $campaign_id = isset($_POST['campaign_id']) ? absint($_POST['campaign_id']) : 0;
+        if (!$campaign_id) {
+            wp_send_json_error(['message' => __('Invalid campaign ID.', 'autoblogcraft')]);
+        }
+        $campaign = get_post($campaign_id);
+        if (!$campaign || $campaign->post_type !== 'abc_campaign') {
+            wp_send_json_error(['message' => __('Campaign not found.', 'autoblogcraft')]);
+        }
+        require_once ABC_PLUGIN_DIR . 'includes/campaigns/class-campaign-repository.php';
+        $repo = new \AutoBlogCraft\Campaigns\Campaign_Repository();
+        $result = $repo->save($campaign_id, $_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+        wp_send_json_success([
+            'message' => __('Settings saved successfully.', 'autoblogcraft')
+        ]);
     }
 }

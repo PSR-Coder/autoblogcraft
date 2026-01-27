@@ -21,14 +21,16 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Admin_Page_API_Keys extends Admin_Page_Base {
+class Admin_Page_API_Keys extends Admin_Page_Base
+{
 
     /**
      * Render page
      *
      * @since 2.0.0
      */
-    public function render() {
+    public function render()
+    {
         // Handle form submission
         if (isset($_POST['abc_save_api_key']) && check_admin_referer('abc_save_api_key')) {
             $this->save_api_key();
@@ -70,7 +72,8 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
      *
      * @since 2.0.0
      */
-    private function render_add_key_form() {
+    private function render_add_key_form()
+    {
         ?>
         <div id="abc-add-key-form" class="abc-card" style="display: none;">
             <div class="abc-card-header">
@@ -79,7 +82,7 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
             <div class="abc-card-body">
                 <form method="post">
                     <?php wp_nonce_field('abc_save_api_key'); ?>
-                    
+
                     <table class="form-table">
                         <tr>
                             <th scope="row">
@@ -101,7 +104,9 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
                             </th>
                             <td>
                                 <input type="text" name="api_key" id="api_key" class="regular-text" required>
-                                <p class="description"><?php _e('Your API key will be encrypted before storage.', 'autoblogcraft'); ?></p>
+                                <p class="description">
+                                    <?php _e('Your API key will be encrypted before storage.', 'autoblogcraft'); ?>
+                                </p>
                             </td>
                         </tr>
                         <tr>
@@ -109,7 +114,8 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
                                 <label for="label"><?php _e('Label', 'autoblogcraft'); ?></label>
                             </th>
                             <td>
-                                <input type="text" name="label" id="label" class="regular-text" placeholder="<?php esc_attr_e('My API Key', 'autoblogcraft'); ?>">
+                                <input type="text" name="label" id="label" class="regular-text"
+                                    placeholder="<?php esc_attr_e('My API Key', 'autoblogcraft'); ?>">
                                 <p class="description"><?php _e('Optional label to identify this key.', 'autoblogcraft'); ?></p>
                             </td>
                         </tr>
@@ -119,7 +125,9 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
                             </th>
                             <td>
                                 <input type="number" name="quota_limit" id="quota_limit" class="regular-text" placeholder="0">
-                                <p class="description"><?php _e('Maximum monthly spend in USD. 0 = unlimited.', 'autoblogcraft'); ?></p>
+                                <p class="description">
+                                    <?php _e('Maximum monthly spend in USD. 0 = unlimited.', 'autoblogcraft'); ?>
+                                </p>
                             </td>
                         </tr>
                     </table>
@@ -143,14 +151,15 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
      *
      * @since 2.0.0
      */
-    private function render_api_keys_list() {
+    private function render_api_keys_list()
+    {
         // Manual loading to ensure Key_Manager is available
         if (!class_exists('AutoBlogCraft\\AI\\Key_Manager')) {
             require_once plugin_dir_path(__FILE__) . '../../ai/class-key-manager.php';
         }
-        
+
         $key_manager = new Key_Manager();
-        
+
         // Get all keys from all providers
         global $wpdb;
         $table_name = $wpdb->prefix . 'abc_api_keys';
@@ -160,7 +169,7 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
             ORDER BY created_at DESC",
             ARRAY_A
         );
-        
+
         if (empty($keys)) {
             $this->render_empty_state(
                 __('No API keys configured', 'autoblogcraft'),
@@ -168,6 +177,7 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
                 [
                     'label' => __('Add API Key', 'autoblogcraft'),
                     'url' => '#',
+                    'class' => 'abc-show-add-key-form',
                 ]
             );
             return;
@@ -188,7 +198,7 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
         foreach ($keys as $key) {
             // Note: api_key is encrypted in database, we don't decrypt it for display
             $masked_key = '••••••••••••' . substr($key['id'], -4);
-            
+
             $rows[] = [
                 'provider' => sprintf(
                     '<strong>%s</strong>',
@@ -210,7 +220,7 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
             ];
         }
 
-        $this->render_card(__('API Keys', 'autoblogcraft'), function() use ($columns, $rows) {
+        $this->render_card(__('API Keys', 'autoblogcraft'), function () use ($columns, $rows) {
             $this->render_table($columns, $rows);
         });
     }
@@ -222,7 +232,8 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
      * @param int $key_id Key ID.
      * @return string Actions HTML.
      */
-    private function get_key_actions($key_id) {
+    private function get_key_actions($key_id)
+    {
         $actions = [];
 
         $actions[] = sprintf(
@@ -245,12 +256,13 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
      *
      * @since 2.0.0
      */
-    private function save_api_key() {
+    private function save_api_key()
+    {
         // Manual loading to ensure Key_Manager is available
         if (!class_exists('AutoBlogCraft\\AI\\Key_Manager')) {
             require_once plugin_dir_path(__FILE__) . '../../ai/class-key-manager.php';
         }
-        
+
         $key_manager = new Key_Manager();
 
         $result = $key_manager->add_key([
@@ -272,12 +284,13 @@ class Admin_Page_API_Keys extends Admin_Page_Base {
      *
      * @since 2.0.0
      */
-    private function delete_api_key() {
+    private function delete_api_key()
+    {
         // Manual loading to ensure Key_Manager is available
         if (!class_exists('AutoBlogCraft\\AI\\Key_Manager')) {
             require_once plugin_dir_path(__FILE__) . '../../ai/class-key-manager.php';
         }
-        
+
         $key_manager = new Key_Manager();
         $key_id = absint($_POST['key_id']);
 

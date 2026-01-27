@@ -31,7 +31,8 @@ if (!defined('ABSPATH')) {
  * - Handles key rotation transparently
  * - Tracks usage automatically
  */
-class AI_Manager {
+class AI_Manager
+{
     /**
      * Singleton instance
      *
@@ -72,7 +73,8 @@ class AI_Manager {
      *
      * @return AI_Manager
      */
-    public static function instance() {
+    public static function instance()
+    {
         if (null === self::$instance) {
             self::$instance = new self();
         }
@@ -82,17 +84,18 @@ class AI_Manager {
     /**
      * Constructor
      */
-    private function __construct() {
+    private function __construct()
+    {
         // Ensure Key_Manager is loaded
         if (!class_exists('AutoBlogCraft\AI\Key_Manager')) {
             require_once ABC_PLUGIN_DIR . 'includes/ai/class-key-manager.php';
         }
-        
+
         // Ensure Key_Rotator is loaded
         if (!class_exists('AutoBlogCraft\AI\Key_Rotator')) {
             require_once ABC_PLUGIN_DIR . 'includes/ai/class-key-rotator.php';
         }
-        
+
         $this->key_manager = new Key_Manager();
         $this->key_rotator = new Key_Rotator($this->key_manager);
         $this->logger = Logger::instance();
@@ -104,7 +107,8 @@ class AI_Manager {
      * @param string $provider_name Provider name (openai, gemini, claude, deepseek)
      * @return object|WP_Error Provider instance or error
      */
-    public function get_provider($provider_name) {
+    public function get_provider($provider_name)
+    {
         // Return cached instance if available
         if (isset($this->providers[$provider_name])) {
             return $this->providers[$provider_name];
@@ -129,7 +133,8 @@ class AI_Manager {
      * @param string $provider_name Provider name
      * @return object|WP_Error Provider instance or error
      */
-    private function create_provider($provider_name) {
+    private function create_provider($provider_name)
+    {
         $provider_classes = [
             'openai' => OpenAI_Provider::class,
             'gemini' => Gemini_Provider::class,
@@ -173,7 +178,8 @@ class AI_Manager {
      * @param array $args Operation arguments
      * @return array|WP_Error Operation result or error
      */
-    public function execute($campaign_id, $operation, $args = []) {
+    public function execute($campaign_id, $operation, $args = [])
+    {
         // Get campaign AI config
         $config = $this->get_campaign_config($campaign_id);
 
@@ -281,7 +287,8 @@ class AI_Manager {
      * @param array $options Options
      * @return array|WP_Error
      */
-    public function rewrite_content($campaign_id, $content, $options = []) {
+    public function rewrite_content($campaign_id, $content, $options = [])
+    {
         return $this->execute($campaign_id, 'rewrite_content', array_merge([$content], $options));
     }
 
@@ -293,7 +300,8 @@ class AI_Manager {
      * @param array $options Options (from_language, to_language required)
      * @return array|WP_Error
      */
-    public function translate($campaign_id, $content, $options = []) {
+    public function translate($campaign_id, $content, $options = [])
+    {
         return $this->execute($campaign_id, 'translate', array_merge([$content], $options));
     }
 
@@ -305,7 +313,8 @@ class AI_Manager {
      * @param array $options Options
      * @return array|WP_Error
      */
-    public function humanize($campaign_id, $content, $options = []) {
+    public function humanize($campaign_id, $content, $options = [])
+    {
         return $this->execute($campaign_id, 'humanize', array_merge([$content], $options));
     }
 
@@ -315,35 +324,17 @@ class AI_Manager {
      * @param int $campaign_id Campaign ID
      * @return array|WP_Error Configuration or error
      */
-    private function get_campaign_config($campaign_id) {
-        global $wpdb;
-
-        $config = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}abc_campaign_ai_config WHERE campaign_id = %d",
-                $campaign_id
-            ),
-            ARRAY_A
-        );
-
-        if (!$config) {
+    private function get_campaign_config($campaign_id)
+    {
+        // Use post meta _ai_config for campaign config
+        $ai_config = get_post_meta($campaign_id, '_ai_config', true);
+        if (!$ai_config || !is_array($ai_config)) {
             return new WP_Error(
                 'no_ai_config',
                 __('Campaign has no AI configuration', 'autoblogcraft-ai')
             );
         }
-
-        // Decode rotation state
-        $rotation_state = !empty($config['rotation_state']) ? json_decode($config['rotation_state'], true) : [];
-
-        return [
-            'provider' => $config['provider'],
-            'model' => $config['model'],
-            'rotation_strategy' => $config['rotation_strategy'] ?: 'round_robin',
-            'rotation_state' => is_array($rotation_state) ? $rotation_state : [],
-            'primary_key_id' => $config['primary_key_id'],
-            'fallback_key_ids' => !empty($config['fallback_key_ids']) ? json_decode($config['fallback_key_ids'], true) : [],
-        ];
+        return $ai_config;
     }
 
     /**
@@ -353,7 +344,8 @@ class AI_Manager {
      * @param array $config Configuration data
      * @return bool|WP_Error
      */
-    public function save_campaign_config($campaign_id, $config) {
+    public function save_campaign_config($campaign_id, $config)
+    {
         global $wpdb;
 
         // Validate provider
@@ -412,7 +404,8 @@ class AI_Manager {
      *
      * @return array Provider names and labels
      */
-    public function get_available_providers() {
+    public function get_available_providers()
+    {
         return [
             'openai' => __('OpenAI (ChatGPT)', 'autoblogcraft-ai'),
             'gemini' => __('Google Gemini', 'autoblogcraft-ai'),

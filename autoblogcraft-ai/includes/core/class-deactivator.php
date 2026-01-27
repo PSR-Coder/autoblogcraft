@@ -77,12 +77,13 @@ class Deactivator {
             return;
         }
 
-        // Unschedule all AutoBlogCraft cron jobs
+
+        // Unschedule all AutoBlogCraft cron jobs (match hooks in Cron_Manager)
         $actions = [
-            'abc_discovery_cron',
-            'abc_processing_cron',
-            'abc_cleanup_cron',
-            'abc_rate_limit_reset_cron',
+            'abc_discovery_job',
+            'abc_processing_job',
+            'abc_cleanup_job',
+            'abc_rate_limit_reset_job',
         ];
 
         foreach ($actions as $action) {

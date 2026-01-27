@@ -49,6 +49,7 @@ class Content_Cleaner {
         'select',
         'textarea',
         'nav',
+        declare(strict_types=1);
         'header',
         'footer',
         'aside',

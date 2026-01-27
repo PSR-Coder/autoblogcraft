@@ -26,7 +26,8 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-abstract class Admin_Page_Base {
+abstract class Admin_Page_Base
+{
 
     /**
      * Page title
@@ -57,7 +58,8 @@ abstract class Admin_Page_Base {
      * @param string $description Page description.
      * @param array $actions Header actions.
      */
-    protected function render_header($title, $description = '', $actions = []) {
+    protected function render_header($title, $description = '', $actions = [])
+    {
         ?>
         <div class="abc-page-header">
             <div class="abc-page-header-content">
@@ -69,8 +71,8 @@ abstract class Admin_Page_Base {
             <?php if (!empty($actions)): ?>
                 <div class="abc-page-header-actions">
                     <?php foreach ($actions as $action): ?>
-                        <a href="<?php echo esc_url($action['url']); ?>" 
-                           class="button <?php echo esc_attr($action['class'] ?? 'button-secondary'); ?>">
+                        <a href="<?php echo esc_url($action['url']); ?>"
+                            class="button <?php echo esc_attr($action['class'] ?? 'button-secondary'); ?>">
                             <?php if (!empty($action['icon'])): ?>
                                 <span class="dashicons <?php echo esc_attr($action['icon']); ?>"></span>
                             <?php endif; ?>
@@ -91,7 +93,8 @@ abstract class Admin_Page_Base {
      * @param callable $content Content callback.
      * @param array $args Card arguments.
      */
-    protected function render_card($title, $content, $args = []) {
+    protected function render_card($title, $content, $args = [])
+    {
         $class = $args['class'] ?? '';
         $footer = $args['footer'] ?? '';
         ?>
@@ -121,7 +124,8 @@ abstract class Admin_Page_Base {
      * @param string $value Stat value.
      * @param array $args Additional arguments.
      */
-    protected function render_stat_card($label, $value, $args = []) {
+    protected function render_stat_card($label, $value, $args = [])
+    {
         $icon = $args['icon'] ?? 'dashicons-chart-line';
         $color = $args['color'] ?? 'blue';
         $trend = $args['trend'] ?? '';
@@ -152,7 +156,8 @@ abstract class Admin_Page_Base {
      * @param string $message Notice message.
      * @param string $type Notice type (success, error, warning, info).
      */
-    protected function render_notice($message, $type = 'info') {
+    protected function render_notice($message, $type = 'info')
+    {
         ?>
         <div class="abc-notice abc-notice-<?php echo esc_attr($type); ?>">
             <p><?php echo esc_html($message); ?></p>
@@ -168,7 +173,8 @@ abstract class Admin_Page_Base {
      * @param string $description Empty state description.
      * @param array $action Call to action button.
      */
-    protected function render_empty_state($title, $description, $action = []) {
+    protected function render_empty_state($title, $description, $action = [])
+    {
         ?>
         <div class="abc-empty-state">
             <div class="abc-empty-state-icon">
@@ -176,9 +182,13 @@ abstract class Admin_Page_Base {
             </div>
             <h3 class="abc-empty-state-title"><?php echo esc_html($title); ?></h3>
             <p class="abc-empty-state-description"><?php echo esc_html($description); ?></p>
-            <?php if (!empty($action)): ?>
-                <a href="<?php echo esc_url($action['url']); ?>" 
-                   class="button button-primary button-large">
+            <?php if (!empty($action)):
+                $btn_class = 'button button-primary button-large';
+                if (!empty($action['class'])) {
+                    $btn_class .= ' ' . esc_attr($action['class']);
+                }
+                ?>
+                <a href="<?php echo esc_url($action['url']); ?>" class="<?php echo $btn_class; ?>">
                     <?php echo esc_html($action['label']); ?>
                 </a>
             <?php endif; ?>
@@ -193,13 +203,14 @@ abstract class Admin_Page_Base {
      * @param array $tabs Tab configuration.
      * @param string $active Active tab ID.
      */
-    protected function render_tabs($tabs, $active) {
+    protected function render_tabs($tabs, $active)
+    {
         ?>
         <div class="abc-tabs">
             <nav class="abc-tabs-nav">
                 <?php foreach ($tabs as $tab_id => $tab): ?>
-                    <a href="<?php echo esc_url($tab['url']); ?>" 
-                       class="abc-tab-link <?php echo $active === $tab_id ? 'active' : ''; ?>">
+                    <a href="<?php echo esc_url($tab['url']); ?>"
+                        class="abc-tab-link <?php echo $active === $tab_id ? 'active' : ''; ?>">
                         <?php if (!empty($tab['icon'])): ?>
                             <span class="dashicons <?php echo esc_attr($tab['icon']); ?>"></span>
                         <?php endif; ?>
@@ -222,7 +233,8 @@ abstract class Admin_Page_Base {
      * @param array $rows Table rows.
      * @param array $args Additional arguments.
      */
-    protected function render_table($columns, $rows, $args = []) {
+    protected function render_table($columns, $rows, $args = [])
+    {
         $class = $args['class'] ?? '';
         ?>
         <div class="abc-table-wrapper">
@@ -271,7 +283,8 @@ abstract class Admin_Page_Base {
      * @param string $timestamp Timestamp.
      * @return string Formatted timestamp.
      */
-    protected function format_timestamp($timestamp) {
+    protected function format_timestamp($timestamp)
+    {
         if (empty($timestamp)) {
             return '—';
         }
@@ -292,7 +305,8 @@ abstract class Admin_Page_Base {
      * @param array $colors Status color map.
      * @return string Badge HTML.
      */
-    protected function format_status_badge($status, $colors = []) {
+    protected function format_status_badge($status, $colors = [])
+    {
         $default_colors = [
             'active' => 'green',
             'paused' => 'yellow',
@@ -324,7 +338,8 @@ abstract class Admin_Page_Base {
      * @param string $base_url Base URL.
      * @return string Pagination HTML.
      */
-    protected function get_pagination($total, $per_page, $current_page, $base_url) {
+    protected function get_pagination($total, $per_page, $current_page, $base_url)
+    {
         $total_pages = ceil($total / $per_page);
 
         if ($total_pages <= 1) {
@@ -374,7 +389,8 @@ abstract class Admin_Page_Base {
      * @param string $template_name Template name (without .php extension).
      * @param array $vars Variables to extract into template scope.
      */
-    protected function load_template($template_name, $vars = []) {
+    protected function load_template($template_name, $vars = [])
+    {
         $template_path = dirname(dirname(dirname(__FILE__))) . '/templates/' . $template_name . '.php';
 
         if (!file_exists($template_path)) {

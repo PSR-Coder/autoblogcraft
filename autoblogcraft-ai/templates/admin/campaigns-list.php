@@ -25,7 +25,7 @@ $breadcrumbs = [
 $actions = [
 	[
 		'label' => __('New Campaign', 'autoblogcraft-ai'),
-		'url' => admin_url('admin.php?page=abc-campaigns&action=new'),
+		'url' => admin_url('admin.php?page=abc-campaign-editor'),
 		'class' => 'button button-primary',
 		'icon' => 'plus-alt',
 	],
@@ -145,18 +145,18 @@ $type_icons = [
 							</th>
 							<td class="column-name column-primary" data-colname="<?php esc_attr_e('Campaign Name', 'autoblogcraft-ai'); ?>">
 								<strong>
-									<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=detail&id=' . $campaign['id'])); ?>">
+									<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign['id'])); ?>">
 										<?php echo esc_html($campaign['name']); ?>
 									</a>
 								</strong>
 								<div class="row-actions">
 									<span class="view">
-										<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=detail&id=' . $campaign['id'])); ?>">
+									<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign['id'])); ?>">
 											<?php esc_html_e('View', 'autoblogcraft-ai'); ?>
 										</a> |
 									</span>
 									<span class="edit">
-										<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=edit&id=' . $campaign['id'])); ?>">
+										<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign['id'])); ?>">
 											<?php esc_html_e('Edit', 'autoblogcraft-ai'); ?>
 										</a> |
 									</span>
@@ -237,7 +237,7 @@ $type_icons = [
 			<span class="dashicons dashicons-megaphone"></span>
 			<h3><?php esc_html_e('No campaigns found', 'autoblogcraft-ai'); ?></h3>
 			<p><?php esc_html_e('Get started by creating your first campaign.', 'autoblogcraft-ai'); ?></p>
-			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=new')); ?>" class="button button-primary button-large">
+			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaign-editor')); ?>" class="button button-primary button-large">
 				<span class="dashicons dashicons-plus-alt"></span>
 				<?php esc_html_e('Create Your First Campaign', 'autoblogcraft-ai'); ?>
 			</a>

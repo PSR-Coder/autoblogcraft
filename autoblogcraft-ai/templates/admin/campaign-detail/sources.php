@@ -13,6 +13,8 @@
  * @var string $campaign_type Campaign type (website, youtube, amazon, news)
  */
 
+use AutoBlogCraft\Helpers\Template_Helpers;
+
 defined('ABSPATH') || exit;
 
 $campaign = $campaign ?? null;
@@ -21,6 +23,38 @@ $campaign_type = $campaign_type ?? 'website';
 
 if (!$campaign) {
 	return;
+}
+
+// For website campaigns, separate sources by type
+$rss_sources = [];
+$sitemap_sources = [];
+$url_sources = [];
+$enabled_types = [];
+
+if ($campaign_type === 'website' && isset($sources['sources'])) {
+	foreach ($sources['sources'] as $source) {
+		if (is_array($source) && isset($source['type'], $source['url'])) {
+			$type = $source['type'];
+			$url = $source['url'];
+			
+			if (empty($url)) continue;
+			
+			switch ($type) {
+				case 'rss':
+					$rss_sources[] = $url;
+					$enabled_types['rss'] = true;
+					break;
+				case 'sitemap':
+					$sitemap_sources[] = $url;
+					$enabled_types['sitemap'] = true;
+					break;
+				case 'url':
+					$url_sources[] = $url;
+					$enabled_types['url'] = true;
+					break;
+			}
+		}
+	}
 }
 ?>
 
@@ -39,60 +73,87 @@ if (!$campaign) {
 
 		<?php if ($campaign_type === 'website') : ?>
 			<!-- Website Sources -->
-			<div class="abc-source-section">
-				<h4><?php esc_html_e('Website URLs', 'autoblogcraft-ai'); ?></h4>
-				
-				<div class="abc-source-list" id="website-sources-list">
-					<?php 
-					$website_sources = $sources['websites'] ?? [''];
-					foreach ($website_sources as $index => $url) :
-					?>
-						<div class="abc-source-item">
-							<input type="url" 
-							       name="sources[websites][]" 
-							       value="<?php echo esc_url($url); ?>" 
-							       placeholder="https://example.com"
-							       class="regular-text">
-							<button type="button" class="button abc-remove-source">
-								<span class="dashicons dashicons-minus"></span>
-							</button>
-						</div>
-					<?php endforeach; ?>
+			<div class="abc-source-section" style="margin-bottom: 25px;">
+				<div style="display: flex; align-items: center; margin-bottom: 15px;">
+					<label style="display: flex; align-items: center; font-weight: 600; font-size: 14px;">
+						<input type="checkbox" 
+							   name="source_types[rss]" 
+							   value="1" 
+							   class="abc-source-type-checkbox" 
+							   data-target="rss-sources-container"
+							   <?php checked(!empty($enabled_types['rss'])); ?>
+							   style="margin: 0 8px 0 0;" />
+						<span class="dashicons dashicons-rss" style="margin-right: 5px;"></span>
+						<?php esc_html_e('RSS Feeds', 'autoblogcraft-ai'); ?>
+					</label>
 				</div>
-				
-				<button type="button" class="button abc-add-source" data-type="websites">
-					<span class="dashicons dashicons-plus-alt"></span>
-					<?php esc_html_e('Add Website URL', 'autoblogcraft-ai'); ?>
-				</button>
+				<div id="rss-sources-container" class="abc-sources-container" style="margin-left: 25px;">
+					<p class="description" style="margin: 0 0 10px 0;">
+						<?php esc_html_e('Add RSS or Atom feed URLs (one per line)', 'autoblogcraft-ai'); ?>
+					</p>
+					<textarea name="rss_sources" 
+							  class="large-text abc-source-textarea" 
+							  rows="4" 
+							  placeholder="https://example.com/feed&#10;https://example2.com/rss"
+							  <?php disabled(empty($enabled_types['rss'])); ?>><?php echo esc_textarea(implode("\n", array_filter($rss_sources))); ?></textarea>
+				</div>
 			</div>
 
-			<!-- Discovery Methods -->
-			<div class="abc-source-section">
-				<h4><?php esc_html_e('Discovery Methods', 'autoblogcraft-ai'); ?></h4>
-				<label>
-					<input type="checkbox" 
-					       name="sources[methods][]" 
-					       value="rss" 
-					       <?php checked(in_array('rss', $sources['methods'] ?? ['rss'])); ?>>
-					<?php esc_html_e('RSS Feed Discovery', 'autoblogcraft-ai'); ?>
-				</label>
-				<br>
-				<label>
-					<input type="checkbox" 
-					       name="sources[methods][]" 
-					       value="sitemap" 
-					       <?php checked(in_array('sitemap', $sources['methods'] ?? ['sitemap'])); ?>>
-					<?php esc_html_e('Sitemap Discovery', 'autoblogcraft-ai'); ?>
-				</label>
-				<br>
-				<label>
-					<input type="checkbox" 
-					       name="sources[methods][]" 
-					       value="web" 
-					       <?php checked(in_array('web', $sources['methods'] ?? [])); ?>>
-					<?php esc_html_e('Web Scraping', 'autoblogcraft-ai'); ?>
-				</label>
+			<div class="abc-source-section" style="margin-bottom: 25px;">
+				<div style="display: flex; align-items: center; margin-bottom: 15px;">
+					<label style="display: flex; align-items: center; font-weight: 600; font-size: 14px;">
+						<input type="checkbox" 
+							   name="source_types[sitemap]" 
+							   value="1" 
+							   class="abc-source-type-checkbox" 
+							   data-target="sitemap-sources-container"
+							   <?php checked(!empty($enabled_types['sitemap'])); ?>
+							   style="margin: 0 8px 0 0;" />
+						<span class="dashicons dashicons-networking" style="margin-right: 5px;"></span>
+						<?php esc_html_e('Sitemaps', 'autoblogcraft-ai'); ?>
+					</label>
+				</div>
+				<div id="sitemap-sources-container" class="abc-sources-container" style="margin-left: 25px;">
+					<p class="description" style="margin: 0 0 10px 0;">
+						<?php esc_html_e('Add XML sitemap URLs (supports RankMath/Yoast indexes)', 'autoblogcraft-ai'); ?>
+					</p>
+					<textarea name="sitemap_sources" 
+							  class="large-text abc-source-textarea" 
+							  rows="4" 
+							  placeholder="https://example.com/sitemap.xml&#10;https://example2.com/post-sitemap.xml"
+							  <?php disabled(empty($enabled_types['sitemap'])); ?>><?php echo esc_textarea(implode("\n", array_filter($sitemap_sources))); ?></textarea>
+				</div>
 			</div>
+
+			<div class="abc-source-section" style="margin-bottom: 25px;">
+				<div style="display: flex; align-items: center; margin-bottom: 15px;">
+					<label style="display: flex; align-items: center; font-weight: 600; font-size: 14px;">
+						<input type="checkbox" 
+							   name="source_types[blogs]" 
+							   value="1" 
+							   class="abc-source-type-checkbox" 
+							   data-target="blogs-sources-container"
+							   <?php checked(!empty($enabled_types['url'])); ?>
+							   style="margin: 0 8px 0 0;" />
+						<span class="dashicons dashicons-admin-links" style="margin-right: 5px;"></span>
+						<?php esc_html_e('Blogs/Websites', 'autoblogcraft-ai'); ?>
+					</label>
+				</div>
+				<div id="blogs-sources-container" class="abc-sources-container" style="margin-left: 25px;">
+					<p class="description" style="margin: 0 0 10px 0;">
+						<?php esc_html_e('Add article pages or blog/category pages for web scraping', 'autoblogcraft-ai'); ?>
+					</p>
+					<textarea name="url_sources" 
+							  class="large-text abc-source-textarea" 
+							  rows="4" 
+							  placeholder="https://example.com/blog&#10;https://example2.com/article/page-title"
+							  <?php disabled(empty($enabled_types['url'])); ?>><?php echo esc_textarea(implode("\n", array_filter($url_sources))); ?></textarea>
+				</div>
+			</div>
+
+			<p class="description" style="margin-top: 20px; padding: 10px; background: #f0f0f1; border-left: 4px solid #2271b1;">
+				<strong><?php esc_html_e('Tip:', 'autoblogcraft-ai'); ?></strong> <?php esc_html_e('Enable at least one source type and add URLs (one per line). You can use multiple source types together.', 'autoblogcraft-ai'); ?>
+			</p>
 
 		<?php elseif ($campaign_type === 'youtube') : ?>
 			<!-- YouTube Sources -->
@@ -256,59 +317,96 @@ if (!$campaign) {
 				</select>
 			</div>
 		<?php endif; ?>
-
-		<!-- Save Button -->
-		<div class="abc-form-actions">
-			<button type="submit" class="button button-primary">
-				<span class="dashicons dashicons-saved"></span>
-				<?php esc_html_e('Save Sources', 'autoblogcraft-ai'); ?>
-			</button>
-		</div>
 	</form>
 </div>
 
 <script type="text/javascript">
 	jQuery(document).ready(function($) {
-		// Add new source field
+		// Toggle textarea enabled/disabled based on checkbox
+		$('.abc-source-type-checkbox').on('change', function() {
+			const targetId = $(this).data('target');
+			const textarea = $('#' + targetId).find('textarea');
+			
+			if ($(this).is(':checked')) {
+				textarea.prop('disabled', false);
+			} else {
+				textarea.prop('disabled', true);
+			}
+		});
+		
+		// Add new source input field
 		$('.abc-add-source').on('click', function() {
-			var type = $(this).data('type');
-			var list = $('#' + type + '-sources-list, #news-keyword-sources-list, #keyword-sources-list, #website-sources-list, #channel-sources-list, #playlist-sources-list, #category-sources-list').filter(':visible');
+			const type = $(this).data('type');
+			const listId = type === 'keywords' ? '#news-keyword-sources-list' : '#category-sources-list';
+			const placeholder = type === 'keywords' ? 'News search keyword' : 'https://amazon.com/category-url';
+			const inputType = type === 'keywords' ? 'text' : 'url';
+			const inputName = 'sources[' + type + '][]';
 			
-			var inputType = (type === 'websites' || type === 'categories') ? 'url' : 'text';
-			var placeholder = $(this).prev('.abc-source-list').find('input').first().attr('placeholder');
-			
-			var newItem = $('<div class="abc-source-item">' +
-				'<input type="' + inputType + '" name="sources[' + type + '][]" value="" placeholder="' + placeholder + '" class="regular-text">' +
+			const newItem = $('<div class="abc-source-item">' +
+				'<input type="' + inputType + '" name="' + inputName + '" value="" placeholder="' + placeholder + '" class="regular-text">' +
 				'<button type="button" class="button abc-remove-source"><span class="dashicons dashicons-minus"></span></button>' +
 				'</div>');
 			
-			list.append(newItem);
+			$(listId).append(newItem);
+			newItem.find('input').focus();
 		});
-
-		// Remove source field
+		
+		// Remove source input field
 		$(document).on('click', '.abc-remove-source', function() {
-			var list = $(this).closest('.abc-source-list');
-			if (list.find('.abc-source-item').length > 1) {
-				$(this).closest('.abc-source-item').remove();
+			const $item = $(this).closest('.abc-source-item');
+			const $list = $item.parent();
+			
+			// Only remove if there's more than one item
+			if ($list.find('.abc-source-item').length > 1) {
+				$item.remove();
 			} else {
-				$(this).prev('input').val('');
+				// If it's the last item, just clear the input
+				$item.find('input').val('');
 			}
 		});
-
+		
 		// Form validation
 		$('#abc-sources-form').on('submit', function(e) {
-			var hasSource = false;
-			$(this).find('input[type="text"], input[type="url"]').each(function() {
-				if ($(this).val().trim() !== '') {
-					hasSource = true;
+			const campaignType = '<?php echo esc_js($campaign_type); ?>';
+			let hasSource = false;
+			
+			if (campaignType === 'website') {
+				$('.abc-source-type-checkbox:checked').each(function() {
+					const targetId = $(this).data('target');
+					const textareaValue = $('#' + targetId).find('textarea').val().trim();
+					
+					if (textareaValue !== '') {
+						hasSource = true;
+						return false; // break loop
+					}
+				});
+				
+				if (!hasSource) {
+					e.preventDefault();
+					alert('<?php esc_html_e('Please enable at least one source type and add URLs.', 'autoblogcraft-ai'); ?>');
 					return false;
 				}
-			});
-			
-			if (!hasSource) {
-				e.preventDefault();
-				alert('<?php esc_html_e('Please add at least one source.', 'autoblogcraft-ai'); ?>');
-				return false;
+			} else if (campaignType === 'youtube') {
+				const channelId = $('input[name="source_config[youtube][channel_id]"]').val().trim();
+				if (!channelId) {
+					e.preventDefault();
+					alert('<?php esc_html_e('Please enter a YouTube Channel ID.', 'autoblogcraft-ai'); ?>');
+					return false;
+				}
+			} else if (campaignType === 'news') {
+				const keywords = $('input[name="source_config[news][keywords]"]').val().trim();
+				if (!keywords) {
+					e.preventDefault();
+					alert('<?php esc_html_e('Please enter keywords for news tracking.', 'autoblogcraft-ai'); ?>');
+					return false;
+				}
+			} else if (campaignType === 'amazon') {
+				const keywords = $('input[name="source_config[amazon][keywords]"]').val().trim();
+				if (!keywords) {
+					e.preventDefault();
+					alert('<?php esc_html_e('Please enter search keywords for Amazon products.', 'autoblogcraft-ai'); ?>');
+					return false;
+				}
 			}
 		});
 	});

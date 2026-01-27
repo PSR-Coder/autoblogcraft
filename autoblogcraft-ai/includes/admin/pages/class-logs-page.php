@@ -19,14 +19,16 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Admin_Page_Logs extends Admin_Page_Base {
+class Admin_Page_Logs extends Admin_Page_Base
+{
 
     /**
      * Render page
      *
      * @since 2.0.0
      */
-    public function render() {
+    public function render()
+    {
         // Get filter parameters
         $level_filter = isset($_GET['level']) ? sanitize_text_field($_GET['level']) : 'all';
         $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
@@ -36,6 +38,16 @@ class Admin_Page_Logs extends Admin_Page_Base {
         ?>
         <div class="wrap abc-wrap">
             <?php
+
+            // Show action notices
+            if (isset($_GET['message']) && $_GET['message'] === 'cleared') {
+                $count = isset($_GET['count']) ? absint($_GET['count']) : 0;
+                $this->render_notice(
+                    sprintf(__('Successfully deleted %d log entries.', 'autoblogcraft'), $count),
+                    'success'
+                );
+            }
+
             $this->render_header(
                 __('Logs', 'autoblogcraft'),
                 __('System activity logs and error tracking', 'autoblogcraft')
@@ -57,31 +69,62 @@ class Admin_Page_Logs extends Admin_Page_Base {
      * @param string $level_filter Level filter.
      * @param string $search Search query.
      */
-    private function render_filters($level_filter, $search) {
+    private function render_filters($level_filter, $search)
+    {
         ?>
         <div class="abc-filters">
             <form method="get" action="">
                 <input type="hidden" name="page" value="autoblogcraft-logs">
-                
+
                 <select name="level" id="abc-level-filter" class="abc-filter-select">
-                    <option value="all" <?php selected($level_filter, 'all'); ?>><?php _e('All Levels', 'autoblogcraft'); ?></option>
-                    <option value="debug" <?php selected($level_filter, 'debug'); ?>><?php _e('Debug', 'autoblogcraft'); ?></option>
-                    <option value="info" <?php selected($level_filter, 'info'); ?>><?php _e('Info', 'autoblogcraft'); ?></option>
-                    <option value="warning" <?php selected($level_filter, 'warning'); ?>><?php _e('Warning', 'autoblogcraft'); ?></option>
-                    <option value="error" <?php selected($level_filter, 'error'); ?>><?php _e('Error', 'autoblogcraft'); ?></option>
+                    <option value="all" <?php selected($level_filter, 'all'); ?>><?php _e('All Levels', 'autoblogcraft'); ?>
+                    </option>
+                    <option value="debug" <?php selected($level_filter, 'debug'); ?>><?php _e('Debug', 'autoblogcraft'); ?>
+                    </option>
+                    <option value="info" <?php selected($level_filter, 'info'); ?>><?php _e('Info', 'autoblogcraft'); ?>
+                    </option>
+                    <option value="warning" <?php selected($level_filter, 'warning'); ?>>
+                        <?php _e('Warning', 'autoblogcraft'); ?></option>
+                    <option value="error" <?php selected($level_filter, 'error'); ?>><?php _e('Error', 'autoblogcraft'); ?>
+                    </option>
                 </select>
 
-                <input type="text" name="search" id="abc-log-search" class="abc-filter-input" 
-                       placeholder="<?php esc_attr_e('Search logs...', 'autoblogcraft'); ?>" 
-                       value="<?php echo esc_attr($search); ?>">
+                <input type="text" name="search" id="abc-log-search" class="abc-filter-input"
+                    placeholder="<?php esc_attr_e('Search logs...', 'autoblogcraft'); ?>"
+                    value="<?php echo esc_attr($search); ?>">
 
                 <button type="submit" class="button"><?php _e('Filter', 'autoblogcraft'); ?></button>
-                
+
                 <a href="<?php echo admin_url('admin.php?page=autoblogcraft-logs'); ?>" class="button">
                     <?php _e('Clear', 'autoblogcraft'); ?>
                 </a>
             </form>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-left: auto;">
+                <?php wp_nonce_field('abc_clear_logs', 'abc_nonce'); ?>
+                <input type="hidden" name="action" value="abc_clear_logs">
+                <button type="submit" class="button button-link-delete"
+                    onclick="return confirm('<?php esc_attr_e('Are you sure you want to delete all logs? This cannot be undone.', 'autoblogcraft'); ?>');">
+                    <?php _e('Delete All Logs', 'autoblogcraft'); ?>
+                </button>
+            </form>
         </div>
+        <style>
+            .abc-filters {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .abc-filter-select {
+                min-width: 150px;
+            }
+
+            .abc-filter-input {
+                min-width: 200px;
+            }
+        </style>
         <?php
     }
 
@@ -94,25 +137,26 @@ class Admin_Page_Logs extends Admin_Page_Base {
      * @param int $paged Current page.
      * @param int $per_page Items per page.
      */
-    private function render_logs_table($level_filter, $search, $paged, $per_page) {
+    private function render_logs_table($level_filter, $search, $paged, $per_page)
+    {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'abc_logs';
         $where = ['1=1'];
-        
+
         if ($level_filter !== 'all') {
             $where[] = $wpdb->prepare('level = %s', $level_filter);
         }
-        
+
         if (!empty($search)) {
             $where[] = $wpdb->prepare('message LIKE %s', '%' . $wpdb->esc_like($search) . '%');
         }
-        
+
         $where_sql = implode(' AND ', $where);
-        
+
         // Get total count
         $total = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}");
-        
+
         // Get logs
         $offset = ($paged - 1) * $per_page;
         $logs = $wpdb->get_results(
@@ -137,12 +181,12 @@ class Admin_Page_Logs extends Admin_Page_Base {
         ];
 
         $rows = [];
-        
+
         foreach ($logs as $log) {
             $level_class = 'abc-log-level-' . strtolower($log->level);
-            
+
             $message_html = sprintf('<strong>%s</strong>', esc_html($log->message));
-            
+
             // Add context if available
             if (!empty($log->context)) {
                 $context = json_decode($log->context, true);
@@ -152,7 +196,7 @@ class Admin_Page_Logs extends Admin_Page_Base {
                     $message_html .= '</div>';
                 }
             }
-            
+
             $rows[] = [
                 'level' => sprintf(
                     '<span class="abc-badge %s">%s</span>',
@@ -168,7 +212,7 @@ class Admin_Page_Logs extends Admin_Page_Base {
             ];
         }
 
-        $this->render_card('', function() use ($columns, $rows) {
+        $this->render_card('', function () use ($columns, $rows) {
             $this->render_table($columns, $rows);
         });
 
@@ -180,7 +224,7 @@ class Admin_Page_Logs extends Admin_Page_Base {
         if (!empty($search)) {
             $base_url = add_query_arg('search', $search, $base_url);
         }
-        
+
         echo $this->get_pagination($total, $per_page, $paged, $base_url);
     }
 }

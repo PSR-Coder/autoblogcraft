@@ -103,9 +103,8 @@ class Rate_Limiter {
 
         if (!in_array($campaign_id, $running_campaigns, true)) {
             $running_campaigns[] = $campaign_id;
-            return wp_cache_set('abc_running_campaigns', $running_campaigns, $this->cache_group, 600); // 10 min TTL
+            return set_transient('abc_running_campaigns', $running_campaigns, 600); // 10 min TTL
         }
-
         return true;
     }
 
@@ -125,7 +124,7 @@ class Rate_Limiter {
         // Re-index array
         $running_campaigns = array_values($running_campaigns);
 
-        return wp_cache_set('abc_running_campaigns', $running_campaigns, $this->cache_group, 600);
+        return set_transient('abc_running_campaigns', $running_campaigns, 600);
     }
 
     /**
@@ -177,7 +176,7 @@ class Rate_Limiter {
      */
     public function increment_ai_calls() {
         $current_calls = $this->get_current_ai_calls();
-        return wp_cache_set('abc_concurrent_ai_calls', $current_calls + 1, $this->cache_group, 600);
+        return set_transient('abc_concurrent_ai_calls', $current_calls + 1, 600);
     }
 
     /**
@@ -188,7 +187,7 @@ class Rate_Limiter {
     public function decrement_ai_calls() {
         $current_calls = $this->get_current_ai_calls();
         $new_count = max(0, $current_calls - 1);
-        return wp_cache_set('abc_concurrent_ai_calls', $new_count, $this->cache_group, 600);
+        return set_transient('abc_concurrent_ai_calls', $new_count, 600);
     }
 
     /**

@@ -208,6 +208,13 @@ class Activator {
             require_once ABC_PLUGIN_DIR . 'includes/libraries/action-scheduler-loader.php';
         }
 
+        // Ensure Action Scheduler data store is initialized before using
+        if (!did_action('action_scheduler_init')) {
+            // Schedule for next request when Action Scheduler is fully initialized
+            add_action('action_scheduler_init', [__CLASS__, 'schedule_cron_jobs']);
+            return;
+        }
+
         // Clear any existing schedules first
         as_unschedule_all_actions('abc_discovery_cron');
         as_unschedule_all_actions('abc_processing_cron');

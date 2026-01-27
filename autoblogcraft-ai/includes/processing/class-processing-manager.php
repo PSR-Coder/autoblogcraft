@@ -109,7 +109,7 @@ class Processing_Manager {
      */
     private function register_processors() {
         $this->processors = [
-            'rss' => RSS_Processor::class,
+            'rss' => Web_Processor::class,
             'sitemap' => Web_Processor::class,
             'web' => Web_Processor::class,
             'youtube' => YouTube_Processor::class,

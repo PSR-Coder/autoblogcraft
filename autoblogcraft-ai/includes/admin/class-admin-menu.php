@@ -25,7 +25,8 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Admin_Menu {
+class Admin_Menu
+{
 
     /**
      * Page instances
@@ -39,16 +40,18 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function __construct() {
+    public function __construct()
+    {
         add_action('admin_menu', [$this, 'register_menu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
-        add_action('admin_init', [$this, 'handle_wizard_submission']);
-        
+        add_action('admin_post_abc_save_campaign', [$this, 'handle_save_campaign']);
+        add_action('admin_post_abc_clear_logs', [$this, 'handle_clear_logs']);
+
         // Ensure AJAX_Handlers class is loaded
         if (!class_exists('AutoBlogCraft\Admin\AJAX_Handlers')) {
             require_once ABC_PLUGIN_DIR . 'includes/admin/class-ajax-handlers.php';
         }
-        
+
         // Initialize AJAX handlers
         new AJAX_Handlers();
     }
@@ -58,7 +61,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function register_menu() {
+    public function register_menu()
+    {
         // Main menu
         add_menu_page(
             __('AutoBlogCraft AI', 'autoblogcraft'),
@@ -133,20 +137,11 @@ class Admin_Menu {
         // Hidden pages (not in menu)
         add_submenu_page(
             null, // No parent = hidden
-            __('Campaign Wizard', 'autoblogcraft'),
-            __('Campaign Wizard', 'autoblogcraft'),
+            __('Campaign Editor', 'autoblogcraft'),
+            __('Campaign Editor', 'autoblogcraft'),
             'manage_options',
-            'abc-campaign-wizard',
-            [$this, 'render_campaign_wizard']
-        );
-
-        add_submenu_page(
-            null, // No parent = hidden
-            __('Campaign Detail', 'autoblogcraft'),
-            __('Campaign Detail', 'autoblogcraft'),
-            'manage_options',
-            'abc-campaign-detail',
-            [$this, 'render_campaign_detail']
+            'abc-campaign-editor',
+            [$this, 'render_campaign_editor']
         );
     }
 
@@ -155,7 +150,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_dashboard() {
+    public function render_dashboard()
+    {
         $page = $this->get_page('dashboard');
         $page->render();
     }
@@ -165,7 +161,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_campaigns() {
+    public function render_campaigns()
+    {
         $page = $this->get_page('campaigns');
         $page->render();
     }
@@ -175,7 +172,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_queue() {
+    public function render_queue()
+    {
         $page = $this->get_page('queue');
         $page->render();
     }
@@ -185,7 +183,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_api_keys() {
+    public function render_api_keys()
+    {
         $page = $this->get_page('api-keys');
         $page->render();
     }
@@ -195,7 +194,8 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_settings() {
+    public function render_settings()
+    {
         $page = $this->get_page('settings');
         $page->render();
     }
@@ -205,28 +205,20 @@ class Admin_Menu {
      *
      * @since 2.0.0
      */
-    public function render_logs() {
+    public function render_logs()
+    {
         $page = $this->get_page('logs');
         $page->render();
     }
 
     /**
-     * Render campaign wizard page
+     * Render campaign editor page
      *
      * @since 2.0.0
      */
-    public function render_campaign_wizard() {
-        $page = $this->get_page('campaign-wizard');
-        $page->render();
-    }
-
-    /**
-     * Render campaign detail page
-     *
-     * @since 2.0.0
-     */
-    public function render_campaign_detail() {
-        $page = $this->get_page('campaign-detail');
+    public function render_campaign_editor()
+    {
+        $page = $this->get_page('campaign-editor');
         $page->render();
     }
 
@@ -237,7 +229,8 @@ class Admin_Menu {
      * @param string $page_id Page identifier.
      * @return object Page instance.
      */
-    private function get_page($page_id) {
+    private function get_page($page_id)
+    {
         if (isset($this->pages[$page_id])) {
             return $this->pages[$page_id];
         }
@@ -252,30 +245,19 @@ class Admin_Menu {
                     require_once plugin_dir_path(__FILE__) . 'pages/class-dashboard-page.php';
                 }
                 $this->pages[$page_id] = new Pages\Admin_Page_Dashboard();
+                $this->pages[$page_id] = new Pages\Admin_Page_Dashboard();
                 break;
 
-            case 'campaign-wizard':
+            case 'campaign-editor':
                 if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Base')) {
                     require_once plugin_dir_path(__FILE__) . 'pages/class-page-base.php';
                 }
-                if (!class_exists('AutoBlogCraft\\Admin\\Wizards\\Wizard_Base')) {
-                    require_once plugin_dir_path(__FILE__) . 'wizards/class-base-wizard.php';
+                if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Campaign_Editor')) {
+                    require_once plugin_dir_path(__FILE__) . 'pages/class-campaign-editor.php';
                 }
-                if (!class_exists('AutoBlogCraft\\Admin\\Wizards\\Admin_Page_Campaign_Wizard')) {
-                    require_once plugin_dir_path(__FILE__) . 'wizards/class-wizard-base.php';
-                }
-                $this->pages[$page_id] = new Wizards\Admin_Page_Campaign_Wizard();
+                $this->pages[$page_id] = new Pages\Admin_Page_Campaign_Editor();
                 break;
 
-            case 'campaign-detail':
-                if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Base')) {
-                    require_once plugin_dir_path(__FILE__) . 'pages/class-page-base.php';
-                }
-                if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Campaign_Detail')) {
-                    require_once plugin_dir_path(__FILE__) . 'pages/class-campaign-detail-page.php';
-                }
-                $this->pages[$page_id] = new Pages\Admin_Page_Campaign_Detail();
-                break;
 
             case 'campaigns':
                 if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Base')) {
@@ -346,7 +328,8 @@ class Admin_Menu {
      * @since 2.0.0
      * @param string $hook Current admin page hook.
      */
-    public function enqueue_assets($hook) {
+    public function enqueue_assets($hook)
+    {
         // Only load on our pages
         if (strpos($hook, 'autoblogcraft') === false && strpos($hook, 'abc-') === false) {
             return;
@@ -380,38 +363,6 @@ class Admin_Menu {
             ],
         ]);
 
-        // Enqueue wizard CSS & JS for campaign wizard page
-        if (strpos($hook, 'abc-campaign-wizard') !== false || (isset($_GET['page']) && $_GET['page'] === 'abc-campaign-wizard')) {
-            // Enqueue wizard CSS
-            wp_enqueue_style(
-                'abc-wizard',
-                plugins_url('assets/css/wizard.css', dirname(dirname(__FILE__))),
-                ['abc-admin'],
-                '2.0.0'
-            );
-
-            // Enqueue wizard JS
-            wp_enqueue_script(
-                'abc-wizard',
-                plugins_url('assets/js/wizard.js', dirname(dirname(__FILE__))),
-                ['jquery'],
-                '2.0.0',
-                true
-            );
-
-            // Localize wizard script
-            wp_localize_script('abc-wizard', 'abcWizard', [
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('abc_admin'),
-                'strings' => [
-                    'validating' => __('Validating...', 'autoblogcraft'),
-                    'valid' => __('Valid!', 'autoblogcraft'),
-                    'invalid' => __('Invalid', 'autoblogcraft'),
-                    'required' => __('This field is required.', 'autoblogcraft'),
-                ],
-            ]);
-        }
-
         // Enqueue WordPress color picker
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('wp-color-picker');
@@ -429,180 +380,287 @@ class Admin_Menu {
     }
 
     /**
-     * Handle wizard form submission early (before any output)
+     * Handle unified campaign save
      *
-     * @since 2.0.0
+     * @since 2.1.0
      */
-    public function handle_wizard_submission() {
-        // Only process on wizard page
-        if (!isset($_GET['page']) || $_GET['page'] !== 'abc-campaign-wizard') {
-            return;
+    public function handle_save_campaign()
+    {
+        if (!isset($_POST['abc_nonce']) || !wp_verify_nonce($_POST['abc_nonce'], 'abc_save_campaign')) {
+            wp_die(__('Security check failed', 'autoblogcraft'));
         }
 
-        // Check if form was submitted
-        if (!isset($_POST['abc_wizard_submit'])) {
-            return;
-        }
-
-        error_log('ABC_WIZARD_DEBUG: handle_wizard_submission() in Admin_Menu - Early processing');
-
-        // Verify nonce
-        if (!isset($_POST['abc_wizard_nonce']) || !wp_verify_nonce($_POST['abc_wizard_nonce'], 'abc_wizard')) {
-            error_log('ABC_WIZARD_DEBUG: Nonce verification failed');
-            wp_die(__('Security check failed.', 'autoblogcraft'));
-        }
-
-        // Verify permissions
         if (!current_user_can('manage_options')) {
-            error_log('ABC_WIZARD_DEBUG: Permission denied');
-            wp_die(__('Permission denied.', 'autoblogcraft'));
+            wp_die(__('Permission denied', 'autoblogcraft'));
         }
 
-        $step = isset($_GET['step']) ? absint($_GET['step']) : 1;
-        $campaign_id_post = isset($_POST['campaign_id']) ? absint($_POST['campaign_id']) : 0;
-        $campaign_id_get = isset($_GET['campaign_id']) ? absint($_GET['campaign_id']) : 0;
+        $campaign_id = isset($_POST['campaign_id']) ? absint($_POST['campaign_id']) : 0;
+        $wizard_step = isset($_POST['wizard_step']) ? sanitize_key($_POST['wizard_step']) : '';
+        $is_wizard = !empty($wizard_step);
+        $create_campaign = isset($_POST['create_campaign']) && $_POST['create_campaign'] === '1';
         
-        // Use POST campaign_id if available, otherwise fall back to GET
-        $campaign_id = $campaign_id_post ? $campaign_id_post : $campaign_id_get;
-
-        error_log('ABC_WIZARD_DEBUG: Processing step ' . $step . ' - POST campaign_id: ' . $campaign_id_post . ', GET campaign_id: ' . $campaign_id_get . ', Using: ' . $campaign_id);
-        error_log('ABC_WIZARD_DEBUG: POST data: ' . print_r($_POST, true));
-        error_log('ABC_WIZARD_DEBUG: GET data: ' . print_r($_GET, true));
-
-        // Load required classes in correct order
-        if (!class_exists('AutoBlogCraft\\Admin\\Pages\\Admin_Page_Base')) {
-            require_once plugin_dir_path(__FILE__) . 'pages/class-page-base.php';
-        }
-        if (!class_exists('AutoBlogCraft\\Admin\\Wizards\\Wizard_Base')) {
-            require_once plugin_dir_path(__FILE__) . 'wizards/class-base-wizard.php';
-        }
-        if (!class_exists('AutoBlogCraft\\Admin\\Wizards\\Admin_Page_Campaign_Wizard')) {
-            require_once plugin_dir_path(__FILE__) . 'wizards/class-wizard-base.php';
-        }
-
-        // Create wizard instance (not needed for save, but validates class loads)
-        $wizard = new Wizards\Admin_Page_Campaign_Wizard();
+        // Get user ID for transient storage
+        $user_id = get_current_user_id();
+        $transient_key = 'abc_campaign_wizard_' . $user_id;
         
-        switch ($step) {
-            case 1:
-                error_log('ABC_WIZARD_DEBUG: Calling wizard->save_step_1()');
-                $campaign_id = $this->wizard_save_step_1($campaign_id);
-                error_log('ABC_WIZARD_DEBUG: Step 1 saved, campaign_id: ' . $campaign_id);
-                wp_redirect(admin_url('admin.php?page=abc-campaign-wizard&step=2&campaign_id=' . $campaign_id));
-                exit;
-
-            case 2:
-                error_log('ABC_WIZARD_DEBUG: Calling wizard->save_step_2()');
-                $this->wizard_save_step_2($campaign_id);
-                wp_redirect(admin_url('admin.php?page=abc-campaign-wizard&step=3&campaign_id=' . $campaign_id));
-                exit;
-
-            case 3:
-                error_log('ABC_WIZARD_DEBUG: Calling wizard->save_step_3()');
-                $this->wizard_save_step_3($campaign_id);
-                wp_redirect(admin_url('admin.php?page=abc-campaign-wizard&step=4&campaign_id=' . $campaign_id));
-                exit;
-
-            case 4:
-                error_log('ABC_WIZARD_DEBUG: Calling wizard->save_step_4()');
-                $this->wizard_save_step_4($campaign_id);
-                wp_redirect(admin_url('admin.php?page=autoblogcraft-campaigns&created=1'));
-                exit;
+        // For wizard mode, store data in transient until final submission
+        if ($is_wizard && !$create_campaign) {
+            // Load existing wizard data
+            $wizard_data = get_transient($transient_key) ?: [];
+            
+            // Merge current step data
+            if ($wizard_step === 'basic') {
+                $wizard_data['title'] = sanitize_text_field($_POST['post_title']);
+                $wizard_data['type'] = sanitize_key($_POST['campaign_type']);
+                $wizard_data['wp_config']['category_id'] = absint($_POST['wp_category_id'] ?? 0);
+                $wizard_data['wp_config']['author_id'] = absint($_POST['wp_author_id'] ?? get_current_user_id());
+                $wizard_data['wp_config']['post_status'] = sanitize_key($_POST['wp_post_status'] ?? 'publish');
+                $wizard_data['wp_config']['seo_plugin'] = sanitize_key($_POST['wp_config']['seo_plugin'] ?? 'none');
+                
+                // Handle discovery interval (use custom if provided, otherwise use dropdown)
+                $discovery_interval = sanitize_text_field($_POST['discovery_interval'] ?? 'every_1_hour');
+                $discovery_interval_custom = sanitize_text_field($_POST['discovery_interval_custom'] ?? '');
+                $wizard_data['discovery_interval'] = !empty($discovery_interval_custom) ? $discovery_interval_custom : $discovery_interval;
+                
+                $wizard_data['limits'] = array_map('absint', $_POST['limits'] ?? []);
+            } elseif ($wizard_step === 'sources') {
+                $wizard_data['source_types'] = $_POST['source_types'] ?? [];
+                $wizard_data['rss_sources'] = sanitize_textarea_field($_POST['rss_sources'] ?? '');
+                $wizard_data['sitemap_sources'] = sanitize_textarea_field($_POST['sitemap_sources'] ?? '');
+                $wizard_data['url_sources'] = sanitize_textarea_field($_POST['url_sources'] ?? '');
+                $wizard_data['source_config'] = $this->sanitize_recursive($_POST['source_config'] ?? []);
+            } elseif ($wizard_step === 'content') {
+                $wizard_data['ai_config'] = array_merge($wizard_data['ai_config'] ?? [], $this->sanitize_recursive($_POST['ai_config'] ?? []));
+            }
+            
+            // Save to transient (expires in 1 hour)
+            set_transient($transient_key, $wizard_data, HOUR_IN_SECONDS);
+            
+            // Determine next step
+            $next_steps = [
+                'basic' => 'sources',
+                'sources' => 'content',
+                'content' => 'ai'
+            ];
+            $next_tab = $next_steps[$wizard_step] ?? 'ai';
+            
+            // Redirect to next step
+            $redirect_url = admin_url('admin.php?page=abc-campaign-editor&tab=' . $next_tab);
+            wp_redirect($redirect_url);
+            exit;
         }
-    }
-
-    /**
-     * Save wizard step 1 data
-     */
-    private function wizard_save_step_1($campaign_id) {
-        $campaign_name = isset($_POST['campaign_name']) ? sanitize_text_field($_POST['campaign_name']) : '';
-        $campaign_type = isset($_POST['campaign_type']) ? sanitize_text_field($_POST['campaign_type']) : '';
-        $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
-
-        error_log('ABC_WIZARD_DEBUG: wizard_save_step_1() - Name: ' . $campaign_name . ', Type: ' . $campaign_type);
-
-        if (!$campaign_id) {
-            $campaign_id = wp_insert_post([
-                'post_title' => $campaign_name,
-                'post_content' => $description,
-                'post_type' => 'abc_campaign',
-                'post_status' => 'draft',
-            ]);
-
-            if (!$campaign_id) {
-                error_log('ABC_WIZARD_DEBUG: Failed to create campaign');
-                wp_die(__('Failed to create campaign.', 'autoblogcraft'));
+        
+        // Final campaign creation (from AI Settings tab with create_campaign=1) or editing existing campaign
+        if ($create_campaign || $campaign_id > 0) {
+            // Load wizard data for final creation
+            $wizard_data = [];
+            if ($create_campaign) {
+                $wizard_data = get_transient($transient_key) ?: [];
+                // Merge final AI settings
+                $wizard_data['ai_config'] = array_merge($wizard_data['ai_config'] ?? [], $this->sanitize_recursive($_POST['ai_config'] ?? []));
             }
 
-            error_log('ABC_WIZARD_DEBUG: Created campaign with ID: ' . $campaign_id);
-            update_post_meta($campaign_id, '_campaign_type', $campaign_type);
-            update_post_meta($campaign_id, '_campaign_status', 'draft');
-        } else {
-            wp_update_post([
-                'ID' => $campaign_id,
-                'post_title' => $campaign_name,
-                'post_content' => $description,
-            ]);
-        }
+            $title = $create_campaign ? ($wizard_data['title'] ?? '') : sanitize_text_field($_POST['post_title']);
+            $type = $create_campaign ? ($wizard_data['type'] ?? 'website') : sanitize_key($_POST['campaign_type']);
 
-        return $campaign_id;
-    }
+            // 1. Create or Update Post
+            $post_data = [
+                'post_title' => $title,
+                'post_type' => 'abc_campaign',
+                'post_status' => 'publish'
+            ];
 
-    /**
-     * Save wizard step 2 data
-     */
-    private function wizard_save_step_2($campaign_id) {
-        $source_config = isset($_POST['source_config']) ? $_POST['source_config'] : [];
-        
-        $sanitized_config = [];
-        foreach ($source_config as $key => $value) {
-            $key = sanitize_key($key);
-            if (is_array($value)) {
-                $sanitized_config[$key] = array_map('sanitize_text_field', $value);
+            if ($campaign_id > 0) {
+                $post_data['ID'] = $campaign_id;
+                wp_update_post($post_data);
             } else {
-                if (in_array($key, ['feed_url', 'start_url'])) {
-                    $sanitized_config[$key] = esc_url_raw($value);
-                } else {
-                    $sanitized_config[$key] = sanitize_text_field($value);
+                $campaign_id = wp_insert_post($post_data);
+                if (is_wp_error($campaign_id)) {
+                    wp_die($campaign_id->get_error_message());
+                }
+                // Set type only on creation
+                update_post_meta($campaign_id, '_campaign_type', $type);
+                update_post_meta($campaign_id, '_campaign_status', 'active');
+            }
+
+            // 1.1 Save WP Config
+            $wp_config = $create_campaign ? ($wizard_data['wp_config'] ?? []) : [];
+            if (isset($_POST['wp_category_id']) || isset($wp_config['category_id']))
+                update_post_meta($campaign_id, '_wp_category_id', absint($_POST['wp_category_id'] ?? $wp_config['category_id'] ?? 0));
+            if (isset($_POST['wp_author_id']) || isset($wp_config['author_id']))
+                update_post_meta($campaign_id, '_wp_author_id', absint($_POST['wp_author_id'] ?? $wp_config['author_id'] ?? get_current_user_id()));
+            if (isset($_POST['wp_post_status']) || isset($wp_config['post_status']))
+                update_post_meta($campaign_id, '_wp_post_status', sanitize_key($_POST['wp_post_status'] ?? $wp_config['post_status'] ?? 'publish'));
+
+            // 2. Save Source Config
+            $clean_source_config = [];
+            
+            if ($type === 'website') {
+                // Handle checkbox-based website sources from sources tab
+                $source_types = $_POST['source_types'] ?? ($create_campaign ? ($wizard_data['source_types'] ?? []) : []);
+                $rss_sources = $_POST['rss_sources'] ?? ($create_campaign ? ($wizard_data['rss_sources'] ?? '') : '');
+                $sitemap_sources = $_POST['sitemap_sources'] ?? ($create_campaign ? ($wizard_data['sitemap_sources'] ?? '') : '');
+                $url_sources = $_POST['url_sources'] ?? ($create_campaign ? ($wizard_data['url_sources'] ?? '') : '');
+                
+                $sources_array = [];
+                
+                // Process RSS feeds
+                if (isset($source_types['rss']) && !empty($rss_sources)) {
+                    $rss_urls = array_filter(array_map('trim', explode("\n", $rss_sources)));
+                    foreach ($rss_urls as $url) {
+                        $sources_array[] = ['type' => 'rss', 'url' => esc_url_raw($url)];
+                    }
+                }
+                
+                // Process Sitemaps
+                if (isset($source_types['sitemap']) && !empty($sitemap_sources)) {
+                    $sitemap_urls = array_filter(array_map('trim', explode("\n", $sitemap_sources)));
+                    foreach ($sitemap_urls as $url) {
+                        $sources_array[] = ['type' => 'sitemap', 'url' => esc_url_raw($url)];
+                    }
+                }
+                
+                // Process Direct URLs/Blogs
+                if (isset($source_types['blogs']) && !empty($url_sources)) {
+                    $direct_urls = array_filter(array_map('trim', explode("\n", $url_sources)));
+                    foreach ($direct_urls as $url) {
+                        $sources_array[] = ['type' => 'url', 'url' => esc_url_raw($url)];
+                    }
+                }
+                
+                $clean_source_config['sources'] = $sources_array;
+                
+                // Use wizard data if available
+                if (empty($sources_array) && $create_campaign && isset($wizard_data['source_config'])) {
+                    $clean_source_config = $wizard_data['source_config'];
+                }
+            } else {
+                // For non-website campaigns (YouTube, Amazon, News)
+                if (isset($_POST['source_config'][$type])) {
+                    $clean_source_config = $this->sanitize_recursive($_POST['source_config'][$type]);
+                } elseif ($create_campaign && isset($wizard_data['source_config'])) {
+                    $clean_source_config = $wizard_data['source_config'];
                 }
             }
+
+            update_post_meta($campaign_id, '_source_config', $clean_source_config);
+
+            // 3. Save AI Config
+            $ai_config = $_POST['ai_config'] ?? ($create_campaign ? ($wizard_data['ai_config'] ?? []) : []);
+            $clean_ai_config = $this->sanitize_recursive($ai_config);
+
+        // Sanitize API Key ID specifically
+        if (isset($ai_config['api_key_id'])) {
+            $clean_ai_config['api_key_id'] = absint($ai_config['api_key_id']);
         }
 
-        update_post_meta($campaign_id, '_source_config', $sanitized_config);
-    }
+        // Numeric fields
+        if (isset($ai_config['temperature'])) {
+            $clean_ai_config['temperature'] = floatval($ai_config['temperature']);
+        }
+        if (isset($ai_config['min_words'])) {
+            $clean_ai_config['min_words'] = absint($ai_config['min_words']);
+        }
+        if (isset($ai_config['max_words'])) {
+            $clean_ai_config['max_words'] = absint($ai_config['max_words']);
+        }
+        if (isset($ai_config['max_headings'])) {
+            $clean_ai_config['max_headings'] = absint($ai_config['max_headings']);
+        }
 
-    /**
-     * Save wizard step 3 data
-     */
-    private function wizard_save_step_3($campaign_id) {
-        $ai_config = isset($_POST['ai_config']) ? $_POST['ai_config'] : [];
-        
-        $sanitized_config = [];
-        foreach ($ai_config as $key => $value) {
-            $key = sanitize_key($key);
-            if (is_numeric($value)) {
-                $sanitized_config[$key] = absint($value);
-            } else {
-                $sanitized_config[$key] = sanitize_text_field($value);
+        // Checkbox handling - all checkboxes need explicit handling
+        $clean_ai_config['humanizer_enabled'] = isset($ai_config['humanizer_enabled']);
+        $clean_ai_config['seo_enabled'] = isset($ai_config['seo_enabled']);
+        $clean_ai_config['fetch_images'] = isset($ai_config['fetch_images']);
+        $clean_ai_config['translation_enabled'] = isset($ai_config['translation_enabled']);
+        $clean_ai_config['match_source_length'] = isset($ai_config['match_source_length']);
+        $clean_ai_config['match_source_tone'] = isset($ai_config['match_source_tone']);
+        $clean_ai_config['match_source_headings'] = isset($ai_config['match_source_headings']);
+        $clean_ai_config['match_source_brand'] = isset($ai_config['match_source_brand']);
+
+        update_post_meta($campaign_id, '_ai_config', $clean_ai_config);
+
+        // 4. Save WP Config (SEO Plugin)
+        if (isset($_POST['wp_config']['seo_plugin'])) {
+            update_post_meta($campaign_id, '_wp_seo_plugin', sanitize_key($_POST['wp_config']['seo_plugin']));
+        }
+
+            // 5. Save Common Settings
+            // Handle discovery interval (custom takes priority)
+            $discovery_interval_custom = sanitize_text_field($_POST['discovery_interval_custom'] ?? '');
+            $discovery_interval_dropdown = sanitize_text_field($_POST['discovery_interval'] ?? '');
+            $discovery_interval = !empty($discovery_interval_custom) ? $discovery_interval_custom : $discovery_interval_dropdown;
+            
+            // If empty, use wizard data or default
+            if (empty($discovery_interval)) {
+                $discovery_interval = $create_campaign ? ($wizard_data['discovery_interval'] ?? 'every_1_hour') : '';
             }
-        }
+            
+            $limits = $_POST['limits'] ?? ($create_campaign ? ($wizard_data['limits'] ?? []) : []);
+            
+            if (!empty($discovery_interval)) {
+                update_post_meta($campaign_id, '_discovery_interval', sanitize_text_field($discovery_interval));
+            }
 
-        update_post_meta($campaign_id, '_ai_config', $sanitized_config);
+            if (!empty($limits)) {
+                update_post_meta($campaign_id, '_limits', array_map('absint', $limits));
+            }
+
+            // Clear wizard transient after successful campaign creation
+            if ($create_campaign) {
+                delete_transient($transient_key);
+            }
+
+            // Redirect based on context
+            if ($create_campaign) {
+                // New campaign created via wizard - redirect to edit mode with success message
+                $redirect_url = admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign_id . '&tab=overview&message=created');
+            } else {
+                // Existing campaign edited - redirect to current tab
+                $current_tab = isset($_POST['current_tab']) ? sanitize_key($_POST['current_tab']) : 'overview';
+                $redirect_url = admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign_id . '&tab=' . $current_tab . '&message=saved');
+            }
+            
+            wp_redirect($redirect_url);
+            exit;
+        }
     }
 
     /**
-     * Save wizard step 4 data
+     * Handle clear logs
      */
-    private function wizard_save_step_4($campaign_id) {
-        $discovery_interval = isset($_POST['discovery_interval']) ? sanitize_text_field($_POST['discovery_interval']) : 'hourly';
-        $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active';
+    public function handle_clear_logs()
+    {
+        if (!isset($_POST['abc_nonce']) || !wp_verify_nonce($_POST['abc_nonce'], 'abc_clear_logs')) {
+            wp_die(__('Security check failed', 'autoblogcraft'));
+        }
 
-        update_post_meta($campaign_id, '_discovery_interval', $discovery_interval);
-        update_post_meta($campaign_id, '_campaign_status', $status);
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Permission denied', 'autoblogcraft'));
+        }
 
-        wp_update_post([
-            'ID' => $campaign_id,
-            'post_status' => 'publish',
-        ]);
+        $logger = \AutoBlogCraft\Core\Logger::instance();
+
+        // Delete all logs (0 days retention)
+        $deleted = $logger->cleanup_old_logs(0);
+
+        // Redirect back
+        $redirect_url = admin_url('admin.php?page=autoblogcraft-logs&message=cleared&count=' . $deleted);
+        wp_redirect($redirect_url);
+        exit;
+    }
+
+    /**
+     * Recursive sanitization helper
+     */
+    private function sanitize_recursive($data)
+    {
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->sanitize_recursive($value);
+            }
+            return $data;
+        }
+        return sanitize_text_field($data);
     }
 }

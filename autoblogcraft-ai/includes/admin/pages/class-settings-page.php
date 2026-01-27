@@ -216,6 +216,25 @@ class Admin_Page_Settings extends Admin_Page_Base {
             <table class="form-table">
                 <tr>
                     <th scope="row">
+                        <label for="log_level"><?php _e('Log Level', 'autoblogcraft'); ?></label>
+                    </th>
+                    <td>
+                        <select name="log_level" id="log_level" class="regular-text">
+                            <option value="error" <?php selected(get_option('abc_log_level', 'info'), 'error'); ?>><?php _e('Error Only', 'autoblogcraft'); ?></option>
+                            <option value="warning" <?php selected(get_option('abc_log_level', 'info'), 'warning'); ?>><?php _e('Warning & Error', 'autoblogcraft'); ?></option>
+                            <option value="success" <?php selected(get_option('abc_log_level', 'info'), 'success'); ?>><?php _e('Success, Warning & Error', 'autoblogcraft'); ?></option>
+                            <option value="info" <?php selected(get_option('abc_log_level', 'info'), 'info'); ?>><?php _e('Info & Above (Default)', 'autoblogcraft'); ?></option>
+                            <option value="debug" <?php selected(get_option('abc_log_level', 'info'), 'debug'); ?>><?php _e('All Messages (Debug)', 'autoblogcraft'); ?></option>
+                        </select>
+                        <p class="description">
+                            <?php _e('Minimum log level to record. Lower levels reduce database size and improve performance.', 'autoblogcraft'); ?><br>
+                            <?php _e('<strong>Recommended:</strong> "Warning & Error" for production sites.', 'autoblogcraft'); ?>
+                        </p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
                         <label for="log_retention_days"><?php _e('Log Retention', 'autoblogcraft'); ?></label>
                     </th>
                     <td>
@@ -282,6 +301,7 @@ class Admin_Page_Settings extends Admin_Page_Base {
         update_option('abc_enable_duplicate_check', isset($_POST['enable_duplicate_check']) ? 1 : 0);
 
         // Cleanup settings
+        update_option('abc_log_level', sanitize_text_field($_POST['log_level'] ?? 'info'));
         update_option('abc_log_retention_days', absint($_POST['log_retention_days'] ?? 30));
         update_option('abc_queue_retention_days', absint($_POST['queue_retention_days'] ?? 30));
         update_option('abc_cache_retention_days', absint($_POST['cache_retention_days'] ?? 90));

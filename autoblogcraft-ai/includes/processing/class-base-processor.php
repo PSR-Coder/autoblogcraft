@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Base Content Processor
  *
@@ -30,7 +31,8 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-abstract class Base_Processor {
+abstract class Base_Processor
+{
 
     /**
      * Logger instance
@@ -72,7 +74,8 @@ abstract class Base_Processor {
      *
      * @since 2.0.0
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->logger = Logger::instance();
         $this->ai_manager = AI_Manager::instance();
         $this->content_cleaner = new Content_Cleaner();
@@ -90,7 +93,8 @@ abstract class Base_Processor {
      * @param object $campaign Campaign instance.
      * @return int|WP_Error Post ID on success, error otherwise.
      */
-    public function process($queue_item, $campaign) {
+    public function process($queue_item, $campaign)
+    {
         $queue_id = $queue_item['id'];
         $source_url = $queue_item['source_url'];
         $campaign_id = $campaign->get_id();
@@ -180,7 +184,8 @@ abstract class Base_Processor {
      * @param array $queue_item Queue item.
      * @return array Metadata array.
      */
-    protected function extract_metadata($content_data, $queue_item) {
+    protected function extract_metadata($content_data, $queue_item)
+    {
         return [
             'source_url' => $queue_item['source_url'],
             'source_title' => isset($content_data['title']) ? $content_data['title'] : $queue_item['title'],
@@ -202,7 +207,8 @@ abstract class Base_Processor {
      * @param object $campaign Campaign instance.
      * @return bool|WP_Error True if valid, error otherwise.
      */
-    protected function validate_item($queue_item, $campaign) {
+    protected function validate_item($queue_item, $campaign)
+    {
         if (empty($queue_item['source_url'])) {
             return new WP_Error('missing_url', 'Source URL is required');
         }
@@ -221,7 +227,8 @@ abstract class Base_Processor {
      * @param array $queue_item Queue item.
      * @return bool True if duplicate, false otherwise.
      */
-    protected function is_duplicate($queue_item) {
+    protected function is_duplicate($queue_item)
+    {
         // Check URL
         if ($this->duplicate_detector->url_exists($queue_item['source_url'])) {
             $this->logger->debug("Duplicate URL detected: {$queue_item['source_url']}");
@@ -245,7 +252,8 @@ abstract class Base_Processor {
      * @param array $content_data Content data.
      * @return string|WP_Error Cleaned content or error.
      */
-    protected function clean_content($content_data) {
+    protected function clean_content($content_data)
+    {
         if (empty($content_data['content'])) {
             return new WP_Error('empty_content', 'Content is empty');
         }
@@ -276,14 +284,56 @@ abstract class Base_Processor {
      * @param array $metadata Metadata.
      * @return array|WP_Error Rewritten content data or error.
      */
-    protected function rewrite_content($campaign, $content, $metadata) {
+    protected function rewrite_content($campaign, $content, $metadata)
+    {
         $campaign_id = $campaign->get_id();
 
-        // Get AI configuration
-        $min_words = $campaign->get_meta('min_words', 600);
-        $max_words = $campaign->get_meta('max_words', 1200);
-        $tone = $campaign->get_meta('tone', 'professional');
-        $language = $campaign->get_meta('language', 'English');
+        // Get AI configuration from _ai_config meta (stored as array)
+        $ai_config = get_post_meta($campaign_id, '_ai_config', true);
+        if (!is_array($ai_config)) {
+            $ai_config = [];
+        }
+
+        // Extract settings with defaults
+        $processing_mode = $ai_config['processing_mode'] ?? 'ai_rewrite';
+        $min_words = $ai_config['min_words'] ?? 300;
+        $max_words = $ai_config['max_words'] ?? 2000;
+        $tone = $ai_config['tone'] ?? 'professional';
+        $audience = $ai_config['audience'] ?? '';
+        $brand_voice = $ai_config['brand_voice'] ?? '';
+        $language = $ai_config['language'] ?? 'english';
+        $max_headings = $ai_config['max_headings'] ?? 5;
+        $rewrite_mode = $ai_config['rewrite_mode'] ?? 'normal';
+
+        // Match source options
+        $match_source_length = $ai_config['match_source_length'] ?? false;
+        $match_source_tone = $ai_config['match_source_tone'] ?? false;
+
+        // Process based on mode
+        if ($processing_mode === 'as_is') {
+            // Return content without AI processing
+            return [
+                'title' => $metadata['source_title'],
+                'content' => $content,
+                'excerpt' => substr(strip_tags($content), 0, 160),
+                'seo' => [
+                    'title' => $metadata['source_title'],
+                    'meta_description' => substr(strip_tags($content), 0, 160),
+                ],
+                'tokens_used' => 0,
+            ];
+        }
+
+        // For AI processing modes, adjust params based on match source options
+        if ($match_source_length) {
+            $source_word_count = str_word_count(strip_tags($content));
+            $min_words = max(100, $source_word_count - 100);
+            $max_words = $source_word_count + 100;
+        }
+
+        if ($match_source_tone) {
+            $tone = 'match source';
+        }
 
         // Rewrite with AI
         $result = $this->ai_manager->rewrite_content($campaign_id, $content, [
@@ -291,7 +341,12 @@ abstract class Base_Processor {
             'min_words' => $min_words,
             'max_words' => $max_words,
             'tone' => $tone,
+            'audience' => $audience,
+            'brand_voice' => $brand_voice,
             'language' => $language,
+            'max_headings' => $max_headings,
+            'rewrite_mode' => $rewrite_mode,
+            'processing_mode' => $processing_mode,
         ]);
 
         if (is_wp_error($result)) {
@@ -299,28 +354,28 @@ abstract class Base_Processor {
         }
 
         // Apply humanization if enabled
-        if ($campaign->get_meta('enable_humanization', false)) {
+        $humanizer_enabled = $ai_config['humanizer_enabled'] ?? false;
+        if ($humanizer_enabled) {
             $result = $this->apply_humanization($campaign, $result);
             if (is_wp_error($result)) {
                 $this->logger->warning("Humanization failed, using original content");
             }
         }
 
-        // Apply translation if needed
-        $target_language = $campaign->get_meta('target_language', '');
-        if (!empty($target_language) && $target_language !== $language) {
-            $result = $this->apply_translation($campaign, $result, $language, $target_language);
+        // Apply translation if language is not English
+        if (strtolower($language) !== 'english') {
+            $result = $this->apply_translation($campaign, $result, 'english', $language);
             if (is_wp_error($result)) {
                 $this->logger->warning("Translation failed, using original language");
             }
         }
 
         return [
-            'title' => $result['seo']['title'],
+            'title' => $result['seo']['title'] ?? $metadata['source_title'],
             'content' => $result['content'],
-            'excerpt' => $result['seo']['meta_description'],
-            'seo' => $result['seo'],
-            'tokens_used' => $result['tokens_used'],
+            'excerpt' => $result['seo']['meta_description'] ?? '',
+            'seo' => $result['seo'] ?? [],
+            'tokens_used' => $result['tokens_used'] ?? 0,
         ];
     }
 
@@ -333,7 +388,8 @@ abstract class Base_Processor {
      * @param array $metadata Metadata.
      * @return int|null Attachment ID or null if no image.
      */
-    protected function generate_featured_image($campaign, $rewritten, $metadata) {
+    protected function generate_featured_image($campaign, $rewritten, $metadata)
+    {
         // Check if featured images are enabled
         if (!$campaign->get_meta('featured_image_enabled', true)) {
             return null;
@@ -378,7 +434,17 @@ abstract class Base_Processor {
      * @param int|null $featured_image Featured image ID.
      * @return array Post data.
      */
-    protected function prepare_post_data($campaign, $rewritten, $metadata, $featured_image) {
+    protected function prepare_post_data($campaign, $rewritten, $metadata, $featured_image)
+    {
+        $campaign_id = $campaign->get_id();
+
+        // Get WP config from individual meta keys
+        $post_status = get_post_meta($campaign_id, '_wp_post_status', true) ?: 'draft';
+        $author_id = get_post_meta($campaign_id, '_wp_author_id', true) ?: get_current_user_id();
+        $category_id = get_post_meta($campaign_id, '_wp_category_id', true);
+
+        $categories = $category_id ? [$category_id] : [];
+
         return [
             'title' => $rewritten['title'],
             'content' => $rewritten['content'],
@@ -386,9 +452,9 @@ abstract class Base_Processor {
             'featured_image' => $featured_image,
             'seo' => $rewritten['seo'],
             'metadata' => $metadata,
-            'status' => $campaign->get_meta('post_status', 'draft'),
-            'author' => $campaign->get_meta('post_author', get_current_user_id()),
-            'category' => $campaign->get_meta('post_category', []),
+            'status' => $post_status,
+            'author' => $author_id,
+            'category' => $categories,
             'tags' => isset($rewritten['seo']['keywords']) ? $rewritten['seo']['keywords'] : [],
         ];
     }
@@ -402,7 +468,8 @@ abstract class Base_Processor {
      * @param int $post_id Post ID.
      * @param array $queue_item Queue item.
      */
-    protected function store_source_reference($post_id, $queue_item) {
+    protected function store_source_reference($post_id, $queue_item)
+    {
         update_post_meta($post_id, '_abc_source_url', $queue_item['source_url']);
         update_post_meta($post_id, '_abc_source_type', $queue_item['source_type']);
         update_post_meta($post_id, '_abc_campaign_id', $queue_item['campaign_id']);
@@ -423,30 +490,31 @@ abstract class Base_Processor {
      * @param array $result AI rewrite result.
      * @return array|WP_Error Humanized result or error.
      */
-    protected function apply_humanization($campaign, $result) {
+    protected function apply_humanization($campaign, $result)
+    {
         if (!class_exists('AutoBlogCraft\Modules\Humanizer\Humanizer_Module')) {
             require_once ABC_PLUGIN_DIR . 'includes/modules/humanizer/class-humanizer-module.php';
         }
 
         $humanizer = \AutoBlogCraft\Modules\Humanizer\Humanizer_Module::get_instance();
-        
+
         $campaign_id = $campaign->get_id();
         $provider = $campaign->get_meta('humanizer_provider', 'gpt4o'); // gpt4o or undetectable
-        
+
         $this->logger->info("Applying humanization with provider: {$provider}");
-        
+
         $humanized = $humanizer->humanize($result['content'], $campaign_id, [
             'provider' => $provider,
             'title' => $result['seo']['title'],
         ]);
-        
+
         if (is_wp_error($humanized)) {
             return $humanized;
         }
-        
+
         // Update content with humanized version
         $result['content'] = $humanized;
-        
+
         return $result;
     }
 
@@ -460,17 +528,18 @@ abstract class Base_Processor {
      * @param string $target_lang Target language.
      * @return array|WP_Error Translated result or error.
      */
-    protected function apply_translation($campaign, $result, $source_lang, $target_lang) {
+    protected function apply_translation($campaign, $result, $source_lang, $target_lang)
+    {
         if (!class_exists('AutoBlogCraft\Modules\Translation\Translation_Module')) {
             require_once ABC_PLUGIN_DIR . 'includes/modules/translation/class-translation-module.php';
         }
 
         $translator = \AutoBlogCraft\Modules\Translation\Translation_Module::get_instance();
-        
+
         $campaign_id = $campaign->get_id();
-        
+
         $this->logger->info("Translating content from {$source_lang} to {$target_lang}");
-        
+
         // Translate title
         $translated_title = $translator->translate(
             $result['seo']['title'],
@@ -478,11 +547,11 @@ abstract class Base_Processor {
             $target_lang,
             $campaign_id
         );
-        
+
         if (is_wp_error($translated_title)) {
             return $translated_title;
         }
-        
+
         // Translate content
         $translated_content = $translator->translate(
             $result['content'],
@@ -490,11 +559,11 @@ abstract class Base_Processor {
             $target_lang,
             $campaign_id
         );
-        
+
         if (is_wp_error($translated_content)) {
             return $translated_content;
         }
-        
+
         // Translate excerpt/meta description
         $translated_excerpt = $translator->translate(
             $result['seo']['meta_description'],
@@ -502,16 +571,16 @@ abstract class Base_Processor {
             $target_lang,
             $campaign_id
         );
-        
+
         if (is_wp_error($translated_excerpt)) {
             return $translated_excerpt;
         }
-        
+
         // Update result with translations
         $result['seo']['title'] = $translated_title;
         $result['content'] = $translated_content;
         $result['seo']['meta_description'] = $translated_excerpt;
-        
+
         return $result;
     }
 

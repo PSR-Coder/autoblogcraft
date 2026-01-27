@@ -13,6 +13,8 @@
  * @var array $queue_stats Queue statistics array
  * @var string $health_class Health status class (abc-health-good|warning|critical)
  * @var string $health_label Health status label
+ * @var array $cron_status Cron status information
+ * @var object $cron_detector Cron detector instance
  */
 
 if (!defined('ABSPATH')) {
@@ -96,6 +98,36 @@ if (!defined('ABSPATH')) {
                         <a href="<?php echo esc_url(admin_url('admin.php?page=abc-logs')); ?>">
                             <?php esc_html_e('View logs', 'autoblogcraft'); ?>
                         </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Cron Configuration -->
+        <div class="abc-health-metric">
+            <div class="abc-health-metric-icon">
+                <span class="dashicons dashicons-clock"></span>
+            </div>
+            <div class="abc-health-metric-details">
+                <div class="abc-health-metric-label"><?php esc_html_e('Cron Configuration', 'autoblogcraft'); ?></div>
+                <div class="abc-health-metric-value">
+                    <span class="abc-health-value-number">
+                        <?php echo esc_html($cron_detector->get_type_label($cron_status['type'])); ?>
+                    </span>
+                    <?php echo $cron_detector->get_health_badge($cron_status['health']); ?>
+                </div>
+                <?php if (!empty($cron_status['issues'])): ?>
+                    <div class="abc-health-metric-warning">
+                        <?php 
+                        $critical_issues = array_filter($cron_status['issues'], function($issue) {
+                            return $issue['severity'] === 'critical';
+                        });
+                        if (!empty($critical_issues)) {
+                            echo esc_html($critical_issues[0]['message']);
+                        } else {
+                            echo esc_html($cron_status['issues'][0]['message']);
+                        }
+                        ?>
                     </div>
                 <?php endif; ?>
             </div>

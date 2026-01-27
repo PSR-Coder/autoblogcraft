@@ -18,7 +18,8 @@ if (!defined('ABSPATH')) {
  *
  * Centralized logging system - Singleton pattern
  */
-class Logger {
+class Logger
+{
 
     /**
      * Singleton instance
@@ -37,11 +38,23 @@ class Logger {
     const ERROR = 'error';
 
     /**
+     * Log level priorities (higher = more important)
+     */
+    private static $level_priority = [
+        'debug' => 1,
+        'info' => 2,
+        'success' => 3,
+        'warning' => 4,
+        'error' => 5,
+    ];
+
+    /**
      * Get singleton instance
      *
      * @return Logger
      */
-    public static function instance() {
+    public static function instance()
+    {
         if (null === self::$instance) {
             self::$instance = new self();
         }
@@ -51,14 +64,16 @@ class Logger {
     /**
      * Constructor
      */
-    private function __construct() {
+    private function __construct()
+    {
         // Private constructor
     }
 
     /**
      * Initialize logger
      */
-    public function init() {
+    public function init()
+    {
         // Future: Hook into admin notices for critical errors
     }
 
@@ -74,7 +89,8 @@ class Logger {
      * @param int|null $post_id Post ID
      * @return int|false Log ID or false on failure
      */
-    public function log($campaign_id, $level, $category, $message, $context = [], $queue_item_id = null, $post_id = null) {
+    public function log($campaign_id, $level, $category, $message, $context = [], $queue_item_id = null, $post_id = null)
+    {
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'abc_logs';
@@ -82,6 +98,11 @@ class Logger {
         // Check if table exists
         if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
             // Table doesn't exist yet, skip logging during installation
+            return false;
+        }
+
+        // Check if this log level should be recorded based on settings
+        if (!$this->should_log($level)) {
             return false;
         }
 
@@ -120,10 +141,34 @@ class Logger {
     }
 
     /**
+     * Check if a log level should be recorded
+     *
+     * @param string $level Log level to check
+     * @return bool True if should log, false otherwise
+     */
+    private function should_log($level) {
+        // Get configured minimum log level (default: info)
+        $min_level = get_option('abc_log_level', 'info');
+
+        // Get priorities
+        $level_priority = self::$level_priority[$level] ?? 1;
+        $min_priority = self::$level_priority[$min_level] ?? 2;
+
+        // Log if current level priority is >= minimum priority
+        // Exception: Always allow DEBUG in WP_DEBUG mode
+        if ($level === self::DEBUG && (defined('WP_DEBUG') && WP_DEBUG || defined('ABC_DEBUG'))) {
+            return true;
+        }
+
+        return $level_priority >= $min_priority;
+    }
+
+    /**
      * Shorthand methods for different log levels
      */
 
-    public function debug($campaign_id = 0, $category = 'general', $message = '', $context = []) {
+    public function debug($campaign_id = 0, $category = 'general', $message = '', $context = [])
+    {
         // Allow calling with just message as first param
         if (is_string($campaign_id) && empty($message)) {
             $message = $campaign_id;
@@ -133,7 +178,8 @@ class Logger {
         return $this->log($campaign_id, self::DEBUG, $category, $message, $context);
     }
 
-    public function info($campaign_id = 0, $category = 'general', $message = '', $context = []) {
+    public function info($campaign_id = 0, $category = 'general', $message = '', $context = [])
+    {
         // Allow calling with just message as first param
         if (is_string($campaign_id) && empty($message)) {
             $message = $campaign_id;
@@ -143,7 +189,8 @@ class Logger {
         return $this->log($campaign_id, self::INFO, $category, $message, $context);
     }
 
-    public function success($campaign_id = 0, $category = 'general', $message = '', $context = []) {
+    public function success($campaign_id = 0, $category = 'general', $message = '', $context = [])
+    {
         // Allow calling with just message as first param
         if (is_string($campaign_id) && empty($message)) {
             $message = $campaign_id;
@@ -153,7 +200,8 @@ class Logger {
         return $this->log($campaign_id, self::SUCCESS, $category, $message, $context);
     }
 
-    public function warning($campaign_id = 0, $category = 'general', $message = '', $context = []) {
+    public function warning($campaign_id = 0, $category = 'general', $message = '', $context = [])
+    {
         // Allow calling with just message as first param
         if (is_string($campaign_id) && empty($message)) {
             $message = $campaign_id;
@@ -163,7 +211,8 @@ class Logger {
         return $this->log($campaign_id, self::WARNING, $category, $message, $context);
     }
 
-    public function error($campaign_id = 0, $category = 'general', $message = '', $context = []) {
+    public function error($campaign_id = 0, $category = 'general', $message = '', $context = [])
+    {
         // Allow calling with just message as first param
         if (is_string($campaign_id) && empty($message)) {
             $message = $campaign_id;
@@ -181,7 +230,8 @@ class Logger {
      * @param string|null $level Filter by log level
      * @return array
      */
-    public function get_logs($campaign_id, $limit = 100, $level = null) {
+    public function get_logs($campaign_id, $limit = 100, $level = null)
+    {
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'abc_logs';
@@ -200,14 +250,29 @@ class Logger {
     /**
      * Delete old logs (cleanup)
      *
-     * @param int $days Keep logs from last X days
+     * @param int $days Keep logs from last X days (0 = delete all logs)
      * @return int Number of deleted logs
      */
-    public function cleanup_old_logs($days = 30) {
+    public function cleanup_old_logs($days = 30)
+    {
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'abc_logs';
 
+        // Delete all logs if days is 0
+        if ($days === 0) {
+            // Get count before deleting
+            $count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
+            
+            if ($count > 0) {
+                // Use DELETE instead of TRUNCATE to return affected rows
+                $wpdb->query("DELETE FROM {$table_name}");
+            }
+            
+            return (int) $count;
+        }
+
+        // Delete logs older than specified days
         $result = $wpdb->query($wpdb->prepare(
             "DELETE FROM {$table_name} WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
             $days

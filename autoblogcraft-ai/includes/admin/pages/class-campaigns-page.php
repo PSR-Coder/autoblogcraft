@@ -21,14 +21,16 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0
  */
-class Admin_Page_Campaigns extends Admin_Page_Base {
+class Admin_Page_Campaigns extends Admin_Page_Base
+{
 
     /**
      * Render page
      *
      * @since 2.0.0
      */
-    public function render() {
+    public function render()
+    {
         // Handle success message
         if (isset($_GET['created'])) {
             $this->render_notice(__('Campaign created successfully!', 'autoblogcraft'), 'success');
@@ -43,7 +45,7 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
                 [
                     [
                         'label' => __('New Campaign', 'autoblogcraft'),
-                        'url' => admin_url('admin.php?page=abc-campaign-wizard'),
+                        'url' => admin_url('admin.php?page=abc-campaign-editor'),
                         'class' => 'button-primary',
                         'icon' => 'dashicons-plus-alt',
                     ],
@@ -63,7 +65,8 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
      *
      * @since 2.0.0
      */
-    private function render_campaigns_list() {
+    private function render_campaigns_list()
+    {
         // Get campaigns
         $query = new \WP_Query([
             'post_type' => 'abc_campaign',
@@ -79,7 +82,7 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
                 __('Create your first campaign to start automating content creation.', 'autoblogcraft'),
                 [
                     'label' => __('Create Campaign', 'autoblogcraft'),
-                    'url' => admin_url('admin.php?page=abc-campaign-wizard'),
+                    'url' => admin_url('admin.php?page=abc-campaign-editor'),
                 ]
             );
             return;
@@ -109,15 +112,15 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
         while ($query->have_posts()) {
             $query->the_post();
             $campaign_id = get_the_ID();
-            
+
             try {
                 $campaign = Campaign_Factory::create($campaign_id);
-                
+
                 // Check if campaign creation failed
                 if (is_wp_error($campaign)) {
                     continue;
                 }
-                
+
                 $type = $campaign->get_type();
                 $status = $campaign->get_status();
                 $last_run = get_post_meta($campaign_id, '_last_discovery_run', true);
@@ -136,7 +139,7 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
                     WHERE meta_key = '_abc_campaign_id' AND meta_value = %d",
                     $campaign_id
                 ));
-                
+
                 // Get campaign description
                 $description = get_post_meta($campaign_id, '_campaign_description', true);
 
@@ -144,7 +147,7 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
                     'cb' => sprintf('<input type="checkbox" class="abc-campaign-checkbox" value="%d">', $campaign_id),
                     'title' => sprintf(
                         '<strong><a href="%s">%s</a></strong><br><span class="abc-text-muted">%s</span>',
-                        esc_url(admin_url('admin.php?page=abc-campaign-detail&campaign_id=' . $campaign_id)),
+                        esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign_id)),
                         esc_html(get_the_title()),
                         esc_html($description)
                     ),
@@ -162,7 +165,7 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
         }
 
         wp_reset_postdata();
-?>
+        ?>
         <div class="abc-card">
             <div class="abc-card-header">
                 <div class="abc-bulk-actions">
@@ -192,13 +195,14 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
      * @param string $status Campaign status.
      * @return string Actions HTML.
      */
-    private function get_campaign_actions($campaign_id, $status) {
+    private function get_campaign_actions($campaign_id, $status)
+    {
         $actions = [];
 
-        // View/Edit button - goes to campaign detail page
+        // View/Edit button - goes to unified campaign editor
         $actions[] = sprintf(
             '<a href="%s" class="button button-small">%s</a>',
-            esc_url(admin_url('admin.php?page=abc-campaign-detail&campaign_id=' . $campaign_id)),
+            esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign_id)),
             __('View', 'autoblogcraft')
         );
 
@@ -226,14 +230,15 @@ class Admin_Page_Campaigns extends Admin_Page_Base {
      * @param string $type Campaign type.
      * @return string Badge HTML.
      */
-    private function format_campaign_type($type) {
+    private function format_campaign_type($type)
+    {
         $colors = [
             'website' => 'blue',
             'youtube' => 'red',
             'amazon' => 'orange',
             'news' => 'purple',
         ];
-        
+
         $labels = [
             'website' => __('Website', 'autoblogcraft'),
             'youtube' => __('YouTube', 'autoblogcraft'),

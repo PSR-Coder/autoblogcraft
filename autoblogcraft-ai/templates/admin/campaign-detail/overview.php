@@ -12,6 +12,8 @@
  * @var array $stats Campaign statistics
  */
 
+use AutoBlogCraft\Helpers\Template_Helpers;
+
 defined('ABSPATH') || exit;
 
 $campaign = $campaign ?? null;
@@ -24,50 +26,45 @@ if (!$campaign) {
 
 <div class="abc-campaign-overview">
 	<!-- Campaign Info Card -->
-	<div class="abc-info-card">
-		<div class="abc-info-header">
-			<h3><?php esc_html_e('Campaign Information', 'autoblogcraft-ai'); ?></h3>
-			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=edit&id=' . $campaign->ID)); ?>" class="button">
-				<span class="dashicons dashicons-edit"></span>
+	<div class="abc-card" style="margin-bottom: 24px;">
+		<div class="abc-card-header">
+			<h3 class="abc-card-title">
+				<span class="dashicons dashicons-admin-settings"></span>
+				<?php esc_html_e('Campaign Information', 'autoblogcraft-ai'); ?>
+			</h3>
+			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaign-editor&campaign_id=' . $campaign->ID . '&tab=basic')); ?>" class="button button-secondary">
+				<span class="dashicons dashicons-edit" style="margin-top: 3px;"></span>
 				<?php esc_html_e('Edit', 'autoblogcraft-ai'); ?>
 			</a>
 		</div>
 		
-		<div class="abc-info-body">
-			<div class="abc-info-row">
-				<div class="abc-info-label"><?php esc_html_e('Campaign Name:', 'autoblogcraft-ai'); ?></div>
-				<div class="abc-info-value"><?php echo esc_html($campaign->post_title); ?></div>
-			</div>
-			
-			<div class="abc-info-row">
-				<div class="abc-info-label"><?php esc_html_e('Campaign Type:', 'autoblogcraft-ai'); ?></div>
-				<div class="abc-info-value">
-					<span class="abc-campaign-type-badge abc-type-<?php echo esc_attr(get_post_meta($campaign->ID, '_abc_campaign_type', true)); ?>">
-						<?php echo esc_html(ucfirst(get_post_meta($campaign->ID, '_abc_campaign_type', true))); ?>
-					</span>
+		<div class="abc-card-body">
+			<div class="abc-two-column">
+				<div class="abc-info-item">
+					<label style="display: block; font-size: 12px; font-weight: 600; color: var(--abc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;"><?php esc_html_e('Campaign Name', 'autoblogcraft-ai'); ?></label>
+					<div style="color: var(--abc-text-main); font-size: 14px; font-weight: 500;"><?php echo esc_html($campaign->post_title); ?></div>
 				</div>
-			</div>
-			
-			<div class="abc-info-row">
-				<div class="abc-info-label"><?php esc_html_e('Status:', 'autoblogcraft-ai'); ?></div>
-				<div class="abc-info-value">
-					<span class="abc-status abc-status-<?php echo esc_attr($campaign->post_status); ?>">
-						<?php echo esc_html(ucfirst($campaign->post_status)); ?>
-					</span>
+				
+				<div class="abc-info-item">
+					<label style="display: block; font-size: 12px; font-weight: 600; color: var(--abc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;"><?php esc_html_e('Campaign Type', 'autoblogcraft-ai'); ?></label>
+					<div>
+						<?php echo Template_Helpers::render_campaign_type_badge(get_post_meta($campaign->ID, '_campaign_type', true)); ?>
+					</div>
 				</div>
-			</div>
-			
-			<div class="abc-info-row">
-				<div class="abc-info-label"><?php esc_html_e('Created:', 'autoblogcraft-ai'); ?></div>
-				<div class="abc-info-value">
-					<?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($campaign->post_date))); ?>
+				
+				<div class="abc-info-item">
+					<label style="display: block; font-size: 12px; font-weight: 600; color: var(--abc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;"><?php esc_html_e('Status', 'autoblogcraft-ai'); ?></label>
+					<div>
+						<?php echo Template_Helpers::render_status_badge(get_post_meta($campaign->ID, '_campaign_status', true) ?: 'active'); ?>
+					</div>
 				</div>
-			</div>
-			
-			<div class="abc-info-row">
-				<div class="abc-info-label"><?php esc_html_e('Last Modified:', 'autoblogcraft-ai'); ?></div>
-				<div class="abc-info-value">
-					<?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($campaign->post_modified))); ?>
+				
+				<div class="abc-info-item">
+					<label style="display: block; font-size: 12px; font-weight: 600; color: var(--abc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;"><?php esc_html_e('Created', 'autoblogcraft-ai'); ?></label>
+					<div style="color: var(--abc-text-main); font-size: 14px;">
+						<span class="dashicons dashicons-calendar-alt" style="color: var(--abc-primary); margin-right: 4px; font-size: 16px; vertical-align: middle;"></span>
+						<?php echo esc_html(date_i18n(get_option('date_format'), strtotime($campaign->post_date))); ?>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -137,52 +134,52 @@ if (!$campaign) {
 	</div>
 
 	<!-- Quick Actions -->
-	<div class="abc-quick-actions-card">
-		<h3><?php esc_html_e('Quick Actions', 'autoblogcraft-ai'); ?></h3>
-		<div class="abc-quick-actions-grid">
-			<?php if ($campaign->post_status === 'publish') : ?>
+	<div class="abc-editor-section" style="margin-bottom: 20px;">
+		<h3 style="margin: 0 0 15px 0;"><?php esc_html_e('Quick Actions', 'autoblogcraft-ai'); ?></h3>
+		<div style="display: flex; flex-wrap: wrap; gap: 10px;">
+			<?php if (get_post_meta($campaign->ID, '_campaign_status', true) !== 'paused') : ?>
 				<a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=abc-campaigns&action=pause&id=' . $campaign->ID), 'abc_pause_campaign_' . $campaign->ID)); ?>" 
-				   class="abc-quick-action abc-action-pause">
-					<span class="dashicons dashicons-controls-pause"></span>
-					<span class="abc-action-label"><?php esc_html_e('Pause Campaign', 'autoblogcraft-ai'); ?></span>
+				   class="button" style="display: inline-flex; align-items: center; gap: 5px;">
+					<span class="dashicons dashicons-controls-pause" style="margin-top: 3px;"></span>
+					<?php esc_html_e('Pause', 'autoblogcraft-ai'); ?>
 				</a>
 			<?php else : ?>
 				<a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=abc-campaigns&action=resume&id=' . $campaign->ID), 'abc_resume_campaign_' . $campaign->ID)); ?>" 
-				   class="abc-quick-action abc-action-resume">
-					<span class="dashicons dashicons-controls-play"></span>
-					<span class="abc-action-label"><?php esc_html_e('Resume Campaign', 'autoblogcraft-ai'); ?></span>
+				   class="button button-primary" style="display: inline-flex; align-items: center; gap: 5px;">
+					<span class="dashicons dashicons-controls-play" style="margin-top: 3px;"></span>
+					<?php esc_html_e('Resume', 'autoblogcraft-ai'); ?>
 				</a>
 			<?php endif; ?>
 
 			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=discover&id=' . $campaign->ID)); ?>" 
-			   class="abc-quick-action abc-action-discover" data-action="discover">
-				<span class="dashicons dashicons-update"></span>
-				<span class="abc-action-label"><?php esc_html_e('Run Discovery Now', 'autoblogcraft-ai'); ?></span>
+			   class="button" data-action="discover" style="display: inline-flex; align-items: center; gap: 5px;">
+				<span class="dashicons dashicons-update" style="margin-top: 3px;"></span>
+				<?php esc_html_e('Run Discovery', 'autoblogcraft-ai'); ?>
 			</a>
 
 			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=process&id=' . $campaign->ID)); ?>" 
-			   class="abc-quick-action abc-action-process" data-action="process">
-				<span class="dashicons dashicons-admin-generic"></span>
-				<span class="abc-action-label"><?php esc_html_e('Process Queue', 'autoblogcraft-ai'); ?></span>
+			   class="button" data-action="process" style="display: inline-flex; align-items: center; gap: 5px;">
+				<span class="dashicons dashicons-admin-generic" style="margin-top: 3px;"></span>
+				<?php esc_html_e('Process Queue', 'autoblogcraft-ai'); ?>
 			</a>
 
 			<a href="<?php echo esc_url(admin_url('admin.php?page=abc-campaigns&action=clone&id=' . $campaign->ID)); ?>" 
-			   class="abc-quick-action abc-action-clone">
-				<span class="dashicons dashicons-admin-page"></span>
-				<span class="abc-action-label"><?php esc_html_e('Clone Campaign', 'autoblogcraft-ai'); ?></span>
+			   class="button" style="display: inline-flex; align-items: center; gap: 5px;">
+				<span class="dashicons dashicons-admin-page" style="margin-top: 3px;"></span>
+				<?php esc_html_e('Clone', 'autoblogcraft-ai'); ?>
 			</a>
 
 			<a href="<?php echo esc_url(admin_url('edit.php?abc_campaign_id=' . $campaign->ID)); ?>" 
-			   class="abc-quick-action abc-action-posts">
-				<span class="dashicons dashicons-edit"></span>
-				<span class="abc-action-label"><?php esc_html_e('View All Posts', 'autoblogcraft-ai'); ?></span>
+			   class="button" style="display: inline-flex; align-items: center; gap: 5px;">
+				<span class="dashicons dashicons-edit" style="margin-top: 3px;"></span>
+				<?php esc_html_e('View Posts', 'autoblogcraft-ai'); ?>
 			</a>
 
 			<a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=abc-campaigns&action=delete&id=' . $campaign->ID), 'abc_delete_campaign_' . $campaign->ID)); ?>" 
-			   class="abc-quick-action abc-action-delete" 
-			   data-confirm="<?php esc_attr_e('Are you sure you want to delete this campaign?', 'autoblogcraft-ai'); ?>">
-				<span class="dashicons dashicons-trash"></span>
-				<span class="abc-action-label"><?php esc_html_e('Delete Campaign', 'autoblogcraft-ai'); ?></span>
+			   class="button" data-confirm="<?php esc_attr_e('Are you sure you want to delete this campaign?', 'autoblogcraft-ai'); ?>"
+			   style="display: inline-flex; align-items: center; gap: 5px; color: #b32d2e;">
+				<span class="dashicons dashicons-trash" style="margin-top: 3px;"></span>
+				<?php esc_html_e('Delete', 'autoblogcraft-ai'); ?>
 			</a>
 		</div>
 	</div>
@@ -201,8 +198,7 @@ if (!$campaign) {
 						</div>
 						<div class="abc-post-meta">
 							<span class="abc-post-date">
-								<?php echo esc_html(human_time_diff(strtotime($post['date']), current_time('timestamp'))); ?>
-								<?php esc_html_e('ago', 'autoblogcraft-ai'); ?>
+							<?php echo esc_html(Template_Helpers::format_relative_time($post['date'])); ?>
 							</span>
 							<span class="abc-post-status abc-status-<?php echo esc_attr($post['status']); ?>">
 								<?php echo esc_html(ucfirst($post['status'])); ?>
@@ -214,30 +210,3 @@ if (!$campaign) {
 		</div>
 	<?php endif; ?>
 </div>
-
-<script type="text/javascript">
-	jQuery(document).ready(function($) {
-		// Confirm delete action
-		$('.abc-action-delete').on('click', function(e) {
-			var message = $(this).data('confirm');
-			if (!confirm(message)) {
-				e.preventDefault();
-			}
-		});
-
-		// Handle async actions (discover, process)
-		$('[data-action="discover"], [data-action="process"]').on('click', function(e) {
-			e.preventDefault();
-			var $btn = $(this);
-			var action = $btn.data('action');
-			
-			$btn.addClass('abc-action-loading').find('.dashicons').addClass('spin');
-			
-			// This would trigger an AJAX call in the real implementation
-			setTimeout(function() {
-				$btn.removeClass('abc-action-loading').find('.dashicons').removeClass('spin');
-				alert(action === 'discover' ? '<?php esc_html_e('Discovery started!', 'autoblogcraft-ai'); ?>' : '<?php esc_html_e('Processing started!', 'autoblogcraft-ai'); ?>');
-			}, 1000);
-		});
-	});
-</script>

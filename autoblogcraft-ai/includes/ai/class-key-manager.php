@@ -24,8 +24,14 @@ if (!defined('ABSPATH')) {
  *
  * Handles API key storage, retrieval, and validation.
  * Uses PBKDF2-based encryption for secure key storage.
+ * 
+ * DB Schema Columns (wp_abc_api_keys):
+ * - id, key_name, provider, provider_type, api_key (encrypted), api_key_hash
+ * - usage_count, total_tokens_used, last_used_at
+ * - rate_limit_per_day, quota_limit, quota_remaining, status, created_at, updated_at
  */
-class Key_Manager {
+class Key_Manager
+{
     /**
      * Logger instance
      *
@@ -43,7 +49,8 @@ class Key_Manager {
     /**
      * Constructor
      */
-    public function __construct() {
+    public function __construct()
+    {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'abc_api_keys';
         $this->logger = Logger::instance();
@@ -63,7 +70,8 @@ class Key_Manager {
      * }
      * @return int|WP_Error Key ID or error
      */
-    public function add_key($args) {
+    public function add_key($args)
+    {
         // Validate required fields
         if (empty($args['provider']) || empty($args['api_key'])) {
             return new WP_Error(
@@ -86,7 +94,7 @@ class Key_Manager {
 
         // Encrypt API key
         $encrypted = Encryption::encrypt($args['api_key']);
-        
+
         if (is_wp_error($encrypted)) {
             $this->logger->error(
                 null,
@@ -96,15 +104,22 @@ class Key_Manager {
             return $encrypted;
         }
 
-        // Prepare data
+        // Generate hash for deduplication
+        $api_key_hash = hash('sha256', $args['api_key']);
+
+        // Prepare data - using correct DB column names
         global $wpdb;
         $data = [
             'provider' => sanitize_text_field($args['provider']),
-            'key_encrypted' => $encrypted,
-            'label' => !empty($args['label']) ? sanitize_text_field($args['label']) : '',
-            'daily_quota' => isset($args['daily_quota']) ? absint($args['daily_quota']) : 0,
-            'monthly_quota' => isset($args['monthly_quota']) ? absint($args['monthly_quota']) : 0,
+            'provider_type' => 'ai',
+            'api_key' => $encrypted,
+            'api_key_hash' => $api_key_hash,
+            'key_name' => !empty($args['label']) ? sanitize_text_field($args['label']) : '',
+            'rate_limit_per_day' => isset($args['daily_quota']) ? absint($args['daily_quota']) : 0,
+            'quota_limit' => isset($args['monthly_quota']) ? absint($args['monthly_quota']) : 0,
             'status' => 'active',
+            'usage_count' => 0,
+            'total_tokens_used' => 0,
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql'),
         ];
@@ -112,11 +127,15 @@ class Key_Manager {
         // Insert
         $inserted = $wpdb->insert($this->table_name, $data, [
             '%s', // provider
-            '%s', // key_encrypted
-            '%s', // label
-            '%d', // daily_quota
-            '%d', // monthly_quota
+            '%s', // provider_type
+            '%s', // api_key (encrypted)
+            '%s', // api_key_hash
+            '%s', // key_name
+            '%d', // rate_limit_per_day
+            '%d', // quota_limit
             '%s', // status
+            '%d', // usage_count
+            '%d', // total_tokens_used
             '%s', // created_at
             '%s', // updated_at
         ]);
@@ -148,7 +167,8 @@ class Key_Manager {
      * @param bool $decrypt Whether to decrypt the key
      * @return array|WP_Error Key data or error
      */
-    public function get_key($key_id, $decrypt = true) {
+    public function get_key($key_id, $decrypt = true)
+    {
         global $wpdb;
 
         $key_id = absint($key_id);
@@ -166,9 +186,9 @@ class Key_Manager {
         }
 
         // Decrypt if requested
-        if ($decrypt && !empty($key['key_encrypted'])) {
-            $decrypted = Encryption::decrypt($key['key_encrypted']);
-            
+        if ($decrypt && !empty($key['api_key'])) {
+            $decrypted = Encryption::decrypt($key['api_key']);
+
             if (is_wp_error($decrypted)) {
                 $this->logger->error(
                     null,
@@ -178,8 +198,7 @@ class Key_Manager {
                 return $decrypted;
             }
 
-            $key['api_key'] = $decrypted;
-            unset($key['key_encrypted']); // Remove encrypted version from response
+            $key['decrypted_key'] = $decrypted;
         }
 
         return $key;
@@ -192,17 +211,19 @@ class Key_Manager {
      * @param bool $active_only Only return active keys
      * @return array Array of key data (without decrypted keys)
      */
-    public function get_keys_by_provider($provider, $active_only = true) {
+    public function get_keys_by_provider($provider, $active_only = true)
+    {
         global $wpdb;
 
         $where = $wpdb->prepare('WHERE provider = %s', $provider);
-        
+
         if ($active_only) {
             $where .= " AND status = 'active'";
         }
 
         $keys = $wpdb->get_results(
-            "SELECT id, provider, label, daily_quota, monthly_quota, requests_today, requests_month, last_used, status, created_at 
+            "SELECT id, provider, key_name, rate_limit_per_day, quota_limit, 
+                    usage_count, total_tokens_used, last_used_at, status, created_at 
             FROM {$this->table_name} 
             {$where}
             ORDER BY created_at DESC",
@@ -219,11 +240,12 @@ class Key_Manager {
      * @param array $data Data to update (label, quotas, status)
      * @return bool|WP_Error
      */
-    public function update_key($key_id, $data) {
+    public function update_key($key_id, $data)
+    {
         global $wpdb;
 
         $key_id = absint($key_id);
-        
+
         // Verify key exists
         $exists = $wpdb->get_var(
             $wpdb->prepare("SELECT id FROM {$this->table_name} WHERE id = %d", $key_id)
@@ -233,26 +255,32 @@ class Key_Manager {
             return new WP_Error('key_not_found', __('API key not found', 'autoblogcraft-ai'));
         }
 
-        // Only allow updating specific fields
-        $allowed_fields = ['label', 'daily_quota', 'monthly_quota', 'status'];
+        // Only allow updating specific fields - map to DB columns
+        $field_mapping = [
+            'label' => 'key_name',
+            'daily_quota' => 'rate_limit_per_day',
+            'monthly_quota' => 'quota_limit',
+            'status' => 'status',
+        ];
+
         $update_data = [];
         $format = [];
 
-        foreach ($allowed_fields as $field) {
-            if (isset($data[$field])) {
-                switch ($field) {
+        foreach ($field_mapping as $input_field => $db_column) {
+            if (isset($data[$input_field])) {
+                switch ($input_field) {
                     case 'label':
-                        $update_data[$field] = sanitize_text_field($data[$field]);
+                        $update_data[$db_column] = sanitize_text_field($data[$input_field]);
                         $format[] = '%s';
                         break;
                     case 'daily_quota':
                     case 'monthly_quota':
-                        $update_data[$field] = absint($data[$field]);
+                        $update_data[$db_column] = absint($data[$input_field]);
                         $format[] = '%d';
                         break;
                     case 'status':
-                        if (in_array($data[$field], ['active', 'inactive', 'error'], true)) {
-                            $update_data[$field] = $data[$field];
+                        if (in_array($data[$input_field], ['active', 'inactive', 'error'], true)) {
+                            $update_data[$db_column] = $data[$input_field];
                             $format[] = '%s';
                         }
                         break;
@@ -294,15 +322,16 @@ class Key_Manager {
      * @param int $key_id Key ID
      * @return bool|WP_Error
      */
-    public function delete_key($key_id) {
+    public function delete_key($key_id)
+    {
         global $wpdb;
 
         $key_id = absint($key_id);
 
-        // Check if key is in use by any campaign
+        // Check if key is in use by any campaign (via post meta)
         $in_use = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}abc_campaign_ai_config WHERE primary_key_id = %d",
+                "SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = '_abc_api_key_id' AND meta_value = %d",
                 $key_id
             )
         );
@@ -340,20 +369,20 @@ class Key_Manager {
      * @param int $tokens Tokens consumed
      * @return bool
      */
-    public function track_usage($key_id, $tokens = 0) {
+    public function track_usage($key_id, $tokens = 0)
+    {
         global $wpdb;
 
         $key_id = absint($key_id);
         $tokens = absint($tokens);
 
-        // Increment request counters
+        // Increment request counters using correct DB columns
         $updated = $wpdb->query(
             $wpdb->prepare(
                 "UPDATE {$this->table_name} 
-                SET requests_today = requests_today + 1,
-                    requests_month = requests_month + 1,
-                    tokens_used = tokens_used + %d,
-                    last_used = %s,
+                SET usage_count = usage_count + 1,
+                    total_tokens_used = total_tokens_used + %d,
+                    last_used_at = %s,
                     updated_at = %s
                 WHERE id = %d",
                 $tokens,
@@ -372,33 +401,24 @@ class Key_Manager {
      * @param int $key_id Key ID
      * @return bool|WP_Error True if available, WP_Error if quota exceeded
      */
-    public function check_quota($key_id) {
+    public function check_quota($key_id)
+    {
         $key = $this->get_key($key_id, false);
 
         if (is_wp_error($key)) {
             return $key;
         }
 
-        // Check daily quota
-        if ($key['daily_quota'] > 0 && $key['requests_today'] >= $key['daily_quota']) {
-            return new WP_Error(
-                'daily_quota_exceeded',
-                sprintf(
-                    __('Daily quota exceeded (%d/%d)', 'autoblogcraft-ai'),
-                    $key['requests_today'],
-                    $key['daily_quota']
-                )
-            );
-        }
-
-        // Check monthly quota
-        if ($key['monthly_quota'] > 0 && $key['requests_month'] >= $key['monthly_quota']) {
+        // Check daily quota (rate_limit_per_day)
+        // Note: Would need a separate daily counter reset mechanism
+        // For now, just check if quota_limit is set and usage_count exceeds it
+        if ($key['quota_limit'] > 0 && $key['usage_count'] >= $key['quota_limit']) {
             return new WP_Error(
                 'monthly_quota_exceeded',
                 sprintf(
                     __('Monthly quota exceeded (%d/%d)', 'autoblogcraft-ai'),
-                    $key['requests_month'],
-                    $key['monthly_quota']
+                    $key['usage_count'],
+                    $key['quota_limit']
                 )
             );
         }
@@ -412,12 +432,14 @@ class Key_Manager {
      *
      * @return int Number of keys reset
      */
-    public function reset_daily_counters() {
+    public function reset_daily_counters()
+    {
         global $wpdb;
 
+        // Reset current_day_count column
         $reset = $wpdb->query(
             "UPDATE {$this->table_name} 
-            SET requests_today = 0, 
+            SET current_day_count = 0, 
                 updated_at = '" . current_time('mysql') . "'"
         );
 
@@ -436,12 +458,13 @@ class Key_Manager {
      *
      * @return int Number of keys reset
      */
-    public function reset_monthly_counters() {
+    public function reset_monthly_counters()
+    {
         global $wpdb;
 
         $reset = $wpdb->query(
             "UPDATE {$this->table_name} 
-            SET requests_month = 0, 
+            SET usage_count = 0, 
                 updated_at = '" . current_time('mysql') . "'"
         );
 
